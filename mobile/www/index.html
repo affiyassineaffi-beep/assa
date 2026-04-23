@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>SSAS</title>
+  <style>
+    html,body{margin:0;height:100%;background:#0a0a0f;color:#fafafa;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+      display:flex;align-items:center;justify-content:center;
+      -webkit-tap-highlight-color:transparent}
+    .loader{text-align:center}
+    .ring{width:54px;height:54px;border-radius:50%;
+      border:4px solid rgba(255,255,255,.15);border-top-color:#ec4899;
+      animation:spin .9s linear infinite;margin:0 auto 18px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    h1{font-weight:600;font-size:18px;margin:0;letter-spacing:.5px}
+  </style>
+</head>
+<body>
+  <div class="loader">
+    <div class="ring"></div>
+    <h1>Chargement de SSAS…</h1>
+  </div>
+  <!-- Capacitor's `server.url` (capacitor.config.json) controls where the
+       WebView actually loads from. This page only shows for a brief moment. -->
+</body>
+</html>

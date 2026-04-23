@@ -1,0 +1,43 @@
+uploads = []
+
+[[generated]]
+id = "Caf3uY-wejDdf9p0im77U"
+uri = "file://attached_assets/generated_images/generated_image_0.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "BPiaONmIjdgGfhE4VKKaz"
+uri = "file://attached_assets/generated_images/generated_image_1.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "tJUMl62_0zS72Kheh4Nlu"
+uri = "file://attached_assets/generated_images/generated_image.png"
+type = "image"
+title = "generated_image"
+
+[[outputs]]
+id = "kHEu1VULcF8inIpp3tpTi"
+uri = "file://ssas-mobile.zip"
+type = "unspecified"
+title = "SSAS — Native Mobile Project (Capacitor + Android)"
+
+[[outputs]]
+id = "qsv78dzGGAIopimNw0jj6"
+uri = "file://mobile/BUILD_APK.md"
+type = "text"
+title = "APK Build Instructions"
+
+[[outputs]]
+id = "laffbPUPmgNuSw8Y9ddnm"
+uri = "file://mobile/resources/icon.png"
+type = "image"
+title = "App Icon (1024×1024)"
+
+[[outputs]]
+id = "SpvNEkbGOHmgW_mcEaKBb"
+uri = "file://mobile/resources/splash.png"
+type = "image"
+title = "Splash Screen (2048×2048)"
