@@ -50,6 +50,8 @@ class Student(db.Model):
     # Profile picture (uploaded path or remote URL — incl. Google avatar)
     avatar_url = db.Column(db.String(500), nullable=True)
 
+    is_admin = db.Column(db.Integer, nullable=False, default=0)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     grades = db.relationship("Grade", back_populates="student", cascade="all, delete-orphan")
@@ -217,3 +219,43 @@ class Resource(db.Model):
             "author_id": self.student_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class UserFile(db.Model):
+    """Cloud-stored file — images go to Cloudinary, videos to Firebase Storage."""
+    __tablename__ = "user_files"
+
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey("students.id", ondelete="CASCADE"),
+                           nullable=False, index=True)
+    file_url = db.Column(db.String(1000), nullable=False)
+    provider_name = db.Column(db.String(32), nullable=False)   # 'cloudinary' | 'firebase' | 'local'
+    public_id = db.Column(db.String(500), nullable=True)        # provider-side ID for deletion
+    file_type = db.Column(db.String(16), nullable=False, default="image")  # 'image' | 'video' | 'other'
+    original_name = db.Column(db.String(255), nullable=True)
+    size_bytes = db.Column(db.Integer, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    student = db.relationship("Student", foreign_keys=[student_id])
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "student_id": self.student_id,
+            "file_url": self.file_url,
+            "provider_name": self.provider_name,
+            "public_id": self.public_id,
+            "file_type": self.file_type,
+            "original_name": self.original_name,
+            "size_bytes": self.size_bytes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class SystemSetting(db.Model):
+    """Global platform settings toggled by the admin."""
+    __tablename__ = "system_settings"
+
+    key = db.Column(db.String(64), primary_key=True)
+    value = db.Column(db.Text, nullable=False, default="")
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

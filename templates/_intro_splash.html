@@ -1,91 +1,182 @@
-{# ── Cinematic intro splash (3.5s, neon D, synth audio) ──
-   Plays once per session. Skippable. Fades to black, then removes itself.
-   No external assets beyond the app icon — audio is synthesized via Web Audio API. #}
+{# ── Cinematic intro splash — Neon "D" logo + synth audio ──
+   Plays once per session. Skippable. Cinematic / AI / Gaming style.
+   No external assets — audio synthesized via Web Audio API. #}
 <div id="ssas-intro" aria-hidden="true">
   <canvas id="ssas-intro-particles"></canvas>
   <div id="ssas-intro-glow"></div>
-  <img id="ssas-intro-logo"
-       src="{{ url_for('static', filename='img/app_icon.png') }}"
-       alt=""/>
-  <button id="ssas-intro-skip" type="button" aria-label="Skip intro">
-    Skip ›
-  </button>
+
+  <!-- Neon "D" Logo -->
+  <div id="ssas-intro-logo">
+    <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="neonGrad" x1="0" y1="0" x2="200" y2="200" gradientUnits="userSpaceOnUse">
+          <stop offset="0%"   stop-color="#7c5cff"/>
+          <stop offset="50%"  stop-color="#38bdf8"/>
+          <stop offset="100%" stop-color="#7c5cff"/>
+        </linearGradient>
+        <filter id="neonGlow" x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur1"/>
+          <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="blur2"/>
+          <feMerge>
+            <feMergeNode in="blur2"/>
+            <feMergeNode in="blur1"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+        <filter id="neonGlowOuter" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="20" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <!-- Outer hex ring -->
+      <polygon points="100,10 175,52 175,148 100,190 25,148 25,52"
+               stroke="url(#neonGrad)" stroke-width="1.5" fill="none" opacity=".3"
+               filter="url(#neonGlowOuter)"/>
+      <!-- Inner hex ring -->
+      <polygon points="100,30 158,63 158,137 100,170 42,137 42,63"
+               stroke="url(#neonGrad)" stroke-width="1" fill="none" opacity=".15"/>
+      <!-- The "D" letterform -->
+      <g filter="url(#neonGlow)">
+        <!-- Vertical stroke -->
+        <rect x="62" y="44" width="14" height="112" rx="4" fill="url(#neonGrad)"/>
+        <!-- Curved right side of D -->
+        <path d="M76 44 h24 c34 0 48 18 48 56 s-14 56-48 56 H76 Z"
+              fill="none" stroke="url(#neonGrad)" stroke-width="14"
+              stroke-linejoin="round" stroke-linecap="round"/>
+        <!-- Inner fill accent -->
+        <path d="M76 58 h20 c24 0 34 12 34 42 s-10 42-34 42 H76 Z"
+              fill="url(#neonGrad)" opacity=".12"/>
+      </g>
+      <!-- Corner dots (circuit-board style) -->
+      <circle cx="100" cy="10"  r="3" fill="#38bdf8" opacity=".7" filter="url(#neonGlow)"/>
+      <circle cx="175" cy="52"  r="3" fill="#7c5cff" opacity=".7" filter="url(#neonGlow)"/>
+      <circle cx="175" cy="148" r="3" fill="#38bdf8" opacity=".7" filter="url(#neonGlow)"/>
+      <circle cx="100" cy="190" r="3" fill="#7c5cff" opacity=".7" filter="url(#neonGlow)"/>
+      <circle cx="25"  cy="148" r="3" fill="#38bdf8" opacity=".7" filter="url(#neonGlow)"/>
+      <circle cx="25"  cy="52"  r="3" fill="#7c5cff" opacity=".7" filter="url(#neonGlow)"/>
+    </svg>
+    <div id="ssas-intro-wordmark">SSAS</div>
+    <div id="ssas-intro-sub">Plateforme Académique</div>
+  </div>
+
+  <!-- Scanlines overlay -->
+  <div id="ssas-intro-scanlines"></div>
+
+  <button id="ssas-intro-skip" type="button" aria-label="Skip intro">Skip ›</button>
 </div>
 
 <style>
   #ssas-intro{
-    position:fixed; inset:0; z-index:99999;
-    background:#000; overflow:hidden;
-    display:flex; align-items:center; justify-content:center;
+    position:fixed;inset:0;z-index:99999;
+    background:#000;overflow:hidden;
+    display:flex;align-items:center;justify-content:center;
     -webkit-tap-highlight-color:transparent;
-    animation: ssasIntroFadeOut .55s cubic-bezier(.4,0,.2,1) 3.0s both;
+    animation: ssasIntroFadeOut .55s cubic-bezier(.4,0,.2,1) 3.6s both;
   }
-  #ssas-intro.skipping{ animation: ssasIntroFadeOut .35s ease both !important; }
+  #ssas-intro.skipping{ animation: ssasIntroFadeOut .30s ease both !important; }
   @keyframes ssasIntroFadeOut{
     from{ opacity:1; }
-    to{ opacity:0; visibility:hidden; }
+    to{ opacity:0; visibility:hidden; pointer-events:none; }
   }
+
+  /* Particles */
   #ssas-intro-particles{
-    position:absolute; inset:0; width:100%; height:100%;
-    display:block; opacity:.85;
+    position:absolute;inset:0;width:100%;height:100%;display:block;opacity:.9;
   }
+
+  /* Neon halo behind the D */
   #ssas-intro-glow{
-    position:absolute; left:50%; top:50%;
-    width:60vmin; height:60vmin;
-    transform:translate(-50%,-50%) scale(.2);
+    position:absolute;left:50%;top:50%;
+    width:70vmin;height:70vmin;
+    transform:translate(-50%,-50%) scale(.1);
     border-radius:50%;
-    background:radial-gradient(circle, rgba(56,189,248,.55) 0%,
-                                       rgba(59,130,246,.25) 35%,
-                                       rgba(0,0,0,0) 70%);
-    filter:blur(8px);
-    animation: ssasIntroGlow 3.0s cubic-bezier(.2,.7,.2,1) forwards;
+    background:radial-gradient(circle,rgba(124,92,255,.6) 0%,rgba(56,189,248,.3) 35%,transparent 70%);
+    filter:blur(20px);
+    animation: ssasIntroGlow 3.6s cubic-bezier(.2,.7,.2,1) forwards;
   }
   @keyframes ssasIntroGlow{
-    0%   { transform:translate(-50%,-50%) scale(.2); opacity:0; }
-    35%  { transform:translate(-50%,-50%) scale(.9); opacity:.6; }
-    55%  { transform:translate(-50%,-50%) scale(1.4); opacity:1; }
-    72%  { transform:translate(-50%,-50%) scale(1.15); opacity:.85; }
-    100% { transform:translate(-50%,-50%) scale(1.6); opacity:0; }
+    0%  { transform:translate(-50%,-50%) scale(.1);  opacity:0; }
+    30% { transform:translate(-50%,-50%) scale(.8);  opacity:.7; }
+    55% { transform:translate(-50%,-50%) scale(1.5); opacity:1; }
+    75% { transform:translate(-50%,-50%) scale(1.2); opacity:.8; }
+    100%{ transform:translate(-50%,-50%) scale(1.7); opacity:0; }
   }
+
+  /* Logo container */
   #ssas-intro-logo{
-    position:relative;
-    width:38vmin; height:auto; max-width:280px;
-    border-radius:22%;
-    opacity:0;
-    transform:scale(.6);
-    filter: drop-shadow(0 0 0 rgba(56,189,248,0));
-    animation: ssasIntroLogo 3.0s cubic-bezier(.2,.7,.2,1) forwards;
+    position:relative;z-index:2;
+    display:flex;flex-direction:column;align-items:center;gap:12px;
+    opacity:0;transform:scale(.5) translateY(20px);
+    animation: ssasIntroLogo 3.6s cubic-bezier(.2,.7,.2,1) forwards;
+  }
+  #ssas-intro-logo svg{
+    width: clamp(120px,28vmin,200px);
+    height:auto;
+    filter:drop-shadow(0 0 0 rgba(124,92,255,0));
+    animation: ssasNeonPulse 3.6s cubic-bezier(.2,.7,.2,1) forwards;
+  }
+  @keyframes ssasNeonPulse{
+    0%  { filter:drop-shadow(0 0 0 rgba(124,92,255,0)); }
+    50% { filter:drop-shadow(0 0 40px rgba(124,92,255,1)) drop-shadow(0 0 80px rgba(56,189,248,.7)); }
+    75% { filter:drop-shadow(0 0 24px rgba(124,92,255,.7)); }
+    100%{ filter:drop-shadow(0 0 18px rgba(56,189,248,.55)); }
   }
   @keyframes ssasIntroLogo{
-    0%   { opacity:0; transform:scale(.6);
-           filter: drop-shadow(0 0 0 rgba(56,189,248,0)) brightness(.4); }
-    25%  { opacity:.4; transform:scale(.85);
-           filter: drop-shadow(0 0 12px rgba(56,189,248,.3)) brightness(.7); }
-    55%  { opacity:1; transform:scale(1.06);
-           filter: drop-shadow(0 0 38px rgba(56,189,248,.95))
-                   drop-shadow(0 0 70px rgba(59,130,246,.6)) brightness(1.25); }
-    72%  { opacity:1; transform:scale(1.0);
-           filter: drop-shadow(0 0 24px rgba(56,189,248,.7)) brightness(1.05); }
-    100% { opacity:1; transform:scale(1.0);
-           filter: drop-shadow(0 0 18px rgba(56,189,248,.55)) brightness(1); }
+    0%  { opacity:0; transform:scale(.5) translateY(20px); }
+    25% { opacity:.5;transform:scale(.9) translateY(6px); }
+    55% { opacity:1; transform:scale(1.05) translateY(0); }
+    75% { opacity:1; transform:scale(1.0) translateY(0); }
+    100%{ opacity:1; transform:scale(1.0) translateY(0); }
   }
+
+  /* Wordmark */
+  #ssas-intro-wordmark{
+    font-family:'Cairo',system-ui,sans-serif;
+    font-size:clamp(28px,6vmin,48px);font-weight:900;letter-spacing:.15em;
+    background:linear-gradient(135deg,#7c5cff,#38bdf8,#7c5cff);
+    background-size:200% 100%;
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+    animation: ssasGradientShift 3s linear infinite;
+    text-transform:uppercase;
+  }
+  #ssas-intro-sub{
+    font-family:'Cairo',system-ui,sans-serif;
+    font-size:clamp(10px,2vmin,14px);font-weight:600;
+    letter-spacing:.35em;text-transform:uppercase;
+    color:rgba(56,189,248,.6);
+    animation: ssasSubFade 3.6s forwards;
+  }
+  @keyframes ssasGradientShift{ to{ background-position:-200% 0; } }
+  @keyframes ssasSubFade{
+    0%  { opacity:0; } 45% { opacity:0; } 65% { opacity:1; } 100%{ opacity:1; }
+  }
+
+  /* Cinematic scanlines */
+  #ssas-intro-scanlines{
+    position:absolute;inset:0;pointer-events:none;z-index:3;
+    background:repeating-linear-gradient(
+      0deg,transparent,transparent 2px,
+      rgba(0,0,0,.08) 2px,rgba(0,0,0,.08) 4px
+    );
+    opacity:.5;
+  }
+
+  /* Skip button */
   #ssas-intro-skip{
-    position:absolute; bottom:max(24px, env(safe-area-inset-bottom));
-    right:18px; z-index:1;
-    background:rgba(255,255,255,.08); color:#cfe7ff;
-    border:1px solid rgba(255,255,255,.18);
-    padding:8px 16px; border-radius:999px;
-    font:600 13px/1 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-    letter-spacing:.5px; cursor:pointer;
-    backdrop-filter: blur(8px);
-    transition: background .2s, transform .2s;
-    outline:none;
+    position:absolute;bottom:max(24px,env(safe-area-inset-bottom));right:18px;z-index:10;
+    background:rgba(255,255,255,.07);color:rgba(56,189,248,.8);
+    border:1px solid rgba(56,189,248,.25);
+    padding:8px 18px;border-radius:999px;
+    font:600 12px/1 system-ui,sans-serif;letter-spacing:.8px;
+    cursor:pointer;backdrop-filter:blur(8px);
+    transition:background .2s,transform .15s;outline:none;
   }
-  #ssas-intro-skip:hover{ background:rgba(255,255,255,.15); transform:translateY(-1px); }
+  #ssas-intro-skip:hover{ background:rgba(56,189,248,.12);transform:translateY(-1px); }
   #ssas-intro-skip:active{ transform:scale(.96); }
-  @media (prefers-reduced-motion: reduce){
-    #ssas-intro{ animation-duration:.2s; animation-delay:.5s; }
-    #ssas-intro-glow, #ssas-intro-logo{ animation-duration:.6s; }
+
+  @media(prefers-reduced-motion:reduce){
+    #ssas-intro{ animation-duration:.2s;animation-delay:.3s; }
+    #ssas-intro-glow,#ssas-intro-logo{ animation-duration:.5s; }
   }
 </style>
 
@@ -93,19 +184,17 @@
 (function(){
   var root = document.getElementById('ssas-intro');
   if(!root) return;
-  // Show only once per browser session
   try{
     if(sessionStorage.getItem('ssas_intro_shown')){
-      root.parentNode && root.parentNode.removeChild(root);
-      return;
+      root.parentNode && root.parentNode.removeChild(root); return;
     }
-    sessionStorage.setItem('ssas_intro_shown', '1');
-  }catch(e){ /* private mode — show anyway */ }
+    sessionStorage.setItem('ssas_intro_shown','1');
+  }catch(e){}
 
-  // ── Slow-motion particles (deep space) ──
+  // ── Particle field — deep space with streak effect ──
   var canvas = document.getElementById('ssas-intro-particles');
   var ctx = canvas.getContext('2d');
-  var DPR = Math.min(window.devicePixelRatio || 1, 2);
+  var DPR = Math.min(window.devicePixelRatio||1,2);
   function resize(){
     canvas.width  = window.innerWidth  * DPR;
     canvas.height = window.innerHeight * DPR;
@@ -113,131 +202,108 @@
   resize();
   window.addEventListener('resize', resize, {passive:true});
 
-  var N = 70, particles = [];
+  var N=90, particles=[];
+  var COLORS=['rgba(124,92,255,','rgba(56,189,248,','rgba(255,255,255,'];
   for(var i=0;i<N;i++){
     particles.push({
-      x: Math.random()*canvas.width,
-      y: Math.random()*canvas.height,
-      r: (Math.random()*1.6 + .3) * DPR,
-      vx: (Math.random()-.5) * .15 * DPR,
-      vy: (Math.random()-.5) * .15 * DPR,
-      a: Math.random()*.6 + .2
+      x:Math.random()*canvas.width, y:Math.random()*canvas.height,
+      r:(Math.random()*1.4+.3)*DPR,
+      vx:(Math.random()-.5)*.2*DPR, vy:(Math.random()-.5)*.2*DPR,
+      a:Math.random()*.5+.15,
+      c:COLORS[Math.floor(Math.random()*COLORS.length)]
     });
   }
-  var raf, t0 = performance.now();
+
+  var raf, t0=performance.now();
   function tick(now){
-    var elapsed = now - t0;
+    var elapsed=now-t0;
     ctx.clearRect(0,0,canvas.width,canvas.height);
+    var pulse=1+1.2*Math.exp(-Math.pow((elapsed-1800)/500,2));
     for(var i=0;i<N;i++){
-      var p = particles[i];
-      p.x += p.vx; p.y += p.vy;
-      if(p.x<0) p.x += canvas.width;  if(p.x>canvas.width)  p.x -= canvas.width;
-      if(p.y<0) p.y += canvas.height; if(p.y>canvas.height) p.y -= canvas.height;
-      // brightness pulse synced to logo glow peak (~1.6s)
-      var pulse = 1 + .8 * Math.exp(-Math.pow((elapsed-1600)/400,2));
+      var p=particles[i];
+      p.x+=p.vx; p.y+=p.vy;
+      if(p.x<0)p.x+=canvas.width; if(p.x>canvas.width)p.x-=canvas.width;
+      if(p.y<0)p.y+=canvas.height; if(p.y>canvas.height)p.y-=canvas.height;
       ctx.beginPath();
-      ctx.fillStyle = 'rgba(150,210,255,'+ (p.a * pulse) +')';
-      ctx.arc(p.x, p.y, p.r * pulse, 0, Math.PI*2);
+      ctx.fillStyle=p.c+(p.a*pulse)+')';
+      ctx.arc(p.x,p.y,p.r*Math.min(pulse,1.8),0,Math.PI*2);
       ctx.fill();
     }
-    if(elapsed < 3500) raf = requestAnimationFrame(tick);
+    if(elapsed<4200) raf=requestAnimationFrame(tick);
   }
-  raf = requestAnimationFrame(tick);
+  raf=requestAnimationFrame(tick);
 
-  // ── Synthesized startup sound (peaks at 1.6s with the logo) ──
+  // ── Synthesized cinematic sound ──
   function playSound(){
     try{
-      var AC = window.AudioContext || window.webkitAudioContext;
-      if(!AC) return;
-      var ac = new AC();
-      var t = ac.currentTime;
-      var master = ac.createGain();
-      master.gain.value = .9;
-      master.connect(ac.destination);
+      var AC=window.AudioContext||window.webkitAudioContext;
+      if(!AC)return;
+      var ac=new AC(), t=ac.currentTime;
+      var master=ac.createGain(); master.gain.value=.85; master.connect(ac.destination);
 
-      // 1) Whoosh — filtered noise rising
-      var bufLen = ac.sampleRate * 1.6;
-      var buf = ac.createBuffer(1, bufLen, ac.sampleRate);
-      var data = buf.getChannelData(0);
-      for(var i=0;i<bufLen;i++){
-        // pink-ish noise
-        data[i] = (Math.random()*2 - 1) * (1 - i/bufLen) * .8;
-      }
-      var noise = ac.createBufferSource(); noise.buffer = buf;
-      var noiseFilter = ac.createBiquadFilter();
-      noiseFilter.type = 'bandpass';
-      noiseFilter.Q.value = 1.2;
-      noiseFilter.frequency.setValueAtTime(180, t);
-      noiseFilter.frequency.exponentialRampToValueAtTime(2400, t + 1.5);
-      var noiseGain = ac.createGain();
-      noiseGain.gain.setValueAtTime(.0001, t);
-      noiseGain.gain.exponentialRampToValueAtTime(.55, t + 1.4);
-      noiseGain.gain.exponentialRampToValueAtTime(.0001, t + 1.9);
-      noise.connect(noiseFilter).connect(noiseGain).connect(master);
-      noise.start(t); noise.stop(t + 2.0);
+      // Whoosh rising
+      var bufLen=ac.sampleRate*2;
+      var buf=ac.createBuffer(1,bufLen,ac.sampleRate);
+      var data=buf.getChannelData(0);
+      for(var i=0;i<bufLen;i++) data[i]=(Math.random()*2-1)*(1-i/bufLen)*.7;
+      var noise=ac.createBufferSource(); noise.buffer=buf;
+      var nbpf=ac.createBiquadFilter(); nbpf.type='bandpass'; nbpf.Q.value=1.4;
+      nbpf.frequency.setValueAtTime(120,t);
+      nbpf.frequency.exponentialRampToValueAtTime(3200,t+1.8);
+      var ng=ac.createGain(); ng.gain.setValueAtTime(.0001,t);
+      ng.gain.exponentialRampToValueAtTime(.5,t+1.6);
+      ng.gain.exponentialRampToValueAtTime(.0001,t+2.2);
+      noise.connect(nbpf).connect(ng).connect(master);
+      noise.start(t); noise.stop(t+2.5);
 
-      // 2) Synth swell — detuned saws sweeping up, peak at 1.6s
-      [0, 7, 12].forEach(function(semi, idx){
-        var osc = ac.createOscillator();
-        osc.type = 'sawtooth';
-        var base = 110 * Math.pow(2, semi/12);
-        osc.frequency.setValueAtTime(base * .5, t + .2);
-        osc.frequency.exponentialRampToValueAtTime(base, t + 1.6);
-        var lpf = ac.createBiquadFilter();
-        lpf.type = 'lowpass';
-        lpf.frequency.setValueAtTime(300, t + .2);
-        lpf.frequency.exponentialRampToValueAtTime(3500, t + 1.6);
-        lpf.Q.value = 6;
-        var g = ac.createGain();
-        g.gain.setValueAtTime(.0001, t + .2);
-        g.gain.exponentialRampToValueAtTime(.18, t + 1.6);
-        g.gain.exponentialRampToValueAtTime(.0001, t + 2.4);
+      // Neon swell chords
+      [0,7,12,19].forEach(function(semi){
+        var osc=ac.createOscillator(); osc.type='sawtooth';
+        var base=110*Math.pow(2,semi/12);
+        osc.frequency.setValueAtTime(base*.4,t+.3);
+        osc.frequency.exponentialRampToValueAtTime(base,t+1.8);
+        var lpf=ac.createBiquadFilter(); lpf.type='lowpass';
+        lpf.frequency.setValueAtTime(200,t+.3);
+        lpf.frequency.exponentialRampToValueAtTime(4000,t+1.8); lpf.Q.value=8;
+        var g=ac.createGain(); g.gain.setValueAtTime(.0001,t+.3);
+        g.gain.exponentialRampToValueAtTime(.14,t+1.8);
+        g.gain.exponentialRampToValueAtTime(.0001,t+3.0);
         osc.connect(lpf).connect(g).connect(master);
-        osc.start(t + .2); osc.stop(t + 2.5);
+        osc.start(t+.3); osc.stop(t+3.2);
       });
 
-      // 3) Digital chime — sparkle bell at peak (1.6s)
-      [1568, 2093, 2637].forEach(function(freq, idx){
-        var osc = ac.createOscillator();
-        osc.type = 'sine';
-        osc.frequency.value = freq;
-        var g = ac.createGain();
-        var st = t + 1.55 + idx * .04;
-        g.gain.setValueAtTime(.0001, st);
-        g.gain.exponentialRampToValueAtTime(.32, st + .015);
-        g.gain.exponentialRampToValueAtTime(.0001, st + 1.2);
+      // Crystalline sparkle at peak
+      [1568,2093,2637,3520].forEach(function(freq,idx){
+        var osc=ac.createOscillator(); osc.type='sine'; osc.frequency.value=freq;
+        var g=ac.createGain(); var st=t+1.75+idx*.05;
+        g.gain.setValueAtTime(.0001,st);
+        g.gain.exponentialRampToValueAtTime(.28,st+.015);
+        g.gain.exponentialRampToValueAtTime(.0001,st+1.4);
         osc.connect(g).connect(master);
-        osc.start(st); osc.stop(st + 1.3);
+        osc.start(st); osc.stop(st+1.5);
       });
 
-      // Fade master at the end so it ducks under the page
-      master.gain.setValueAtTime(.9, t + 2.6);
-      master.gain.exponentialRampToValueAtTime(.0001, t + 3.4);
-      setTimeout(function(){ try{ ac.close(); }catch(e){} }, 4200);
-    }catch(e){ /* audio blocked — silent intro is fine */ }
+      master.gain.setValueAtTime(.85,t+2.8);
+      master.gain.exponentialRampToValueAtTime(.0001,t+3.8);
+      setTimeout(function(){ try{ac.close();}catch(e){} },5000);
+    }catch(e){}
   }
 
-  // Browsers require a user gesture before audio. Try immediately; if it
-  // fails (autoplay blocked), arm the next gesture to play it.
-  var played = false;
-  function tryPlay(){ if(played) return; played = true; playSound(); }
+  var played=false;
+  function tryPlay(){ if(played)return; played=true; playSound(); }
   tryPlay();
   ['pointerdown','keydown','touchstart'].forEach(function(ev){
-    window.addEventListener(ev, tryPlay, {once:true, passive:true});
+    window.addEventListener(ev,tryPlay,{once:true,passive:true});
   });
 
-  // ── Cleanup & skip ──
   function dismiss(quick){
     if(quick) root.classList.add('skipping');
     setTimeout(function(){
       cancelAnimationFrame(raf);
-      try{ root.remove(); }catch(e){ root.style.display='none'; }
-    }, quick ? 380 : 600);
+      try{root.remove();}catch(e){root.style.display='none';}
+    }, quick?320:650);
   }
-  document.getElementById('ssas-intro-skip').addEventListener('click', function(){
-    dismiss(true);
-  });
-  // Auto-dismiss after the fade-out finishes
-  setTimeout(function(){ dismiss(false); }, 3550);
+  document.getElementById('ssas-intro-skip').addEventListener('click',function(){ dismiss(true); });
+  setTimeout(function(){ dismiss(false); },4150);
 })();
 </script>

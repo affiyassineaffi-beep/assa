@@ -13,7 +13,8 @@ from oauthlib.oauth2 import WebApplicationClient
 from sqlalchemy import or_, and_, text
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from models import db, Student, Grade, Message, Track, Group, GroupMember, Resource
+from models import db, Student, Grade, Message, Track, Group, GroupMember, Resource, UserFile, SystemSetting
+import storage_manager as sm
 from datetime import timedelta
 from werkzeug.utils import secure_filename
 import re, uuid, time, secrets, random
@@ -536,11 +537,10 @@ def _ensure_schema():
             ("custom_theme",       "ALTER TABLE students ADD COLUMN custom_theme TEXT"),
             ("password_reset_token",   "ALTER TABLE students ADD COLUMN password_reset_token VARCHAR(80)"),
             ("password_reset_expires", "ALTER TABLE students ADD COLUMN password_reset_expires DATETIME"),
+            ("is_admin",               "ALTER TABLE students ADD COLUMN is_admin INTEGER DEFAULT 0"),
         ]:
             if col not in scols:
                 db.session.execute(text(ddl))
-                # When the column is freshly added, mark all pre-existing accounts as
-                # already active/verified so the new check doesn't lock them out.
                 if col == "is_active":
                     db.session.execute(text("UPDATE students SET is_active=1"))
                 elif col == "email_verified":
@@ -2677,6 +2677,170 @@ def ai_hf():
     ]
     session[AI_HISTORY_KEY] = new_hist[-(AI_MAX_TURNS * 2):]
     return jsonify({"reply": text_out})
+
+
+# ─── Cloud Upload API ─────────────────────────────────────────────────────────
+@app.route("/api/upload", methods=["POST"])
+def api_upload():
+    """Upload an image or video; route to the correct cloud provider."""
+    student = current_student()
+    if not student:
+        return jsonify({"error": "auth"}), 401
+    f = request.files.get("file")
+    if not f or not f.filename:
+        return jsonify({"error": "no file"}), 400
+    file_bytes = f.read()
+    mime = f.mimetype or ""
+    result = sm.route_upload(file_bytes, f.filename, mime)
+    uf = UserFile(
+        student_id=student.id,
+        file_url=result["url"],
+        provider_name=result["provider"],
+        public_id=result.get("public_id"),
+        file_type=result["file_type"],
+        original_name=f.filename,
+        size_bytes=len(file_bytes),
+    )
+    db.session.add(uf)
+    db.session.commit()
+    return jsonify({
+        "url": result["url"],
+        "provider": result["provider"],
+        "file_type": result["file_type"],
+        "id": uf.id,
+        "warning": result.get("error"),
+    })
+
+
+# ─── Admin Master Dashboard ────────────────────────────────────────────────────
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "").strip().lower()
+
+
+def _is_admin(student: Student | None) -> bool:
+    if not student:
+        return False
+    if student.is_admin:
+        return True
+    if ADMIN_EMAIL and (student.email or "").strip().lower() == ADMIN_EMAIL:
+        return True
+    return False
+
+
+@app.route("/admin-master")
+def admin_master():
+    student = current_student()
+    if not _is_admin(student):
+        abort(404)
+    lang = get_lang()
+    theme = get_theme()
+
+    total_users = Student.query.count()
+    total_files = UserFile.query.count()
+
+    users = Student.query.order_by(Student.created_at.desc()).limit(50).all()
+
+    cl_usage = sm.cloudinary_usage()
+    cl_configured = sm._cloudinary_configured()
+    fb_configured = sm._firebase_configured()
+
+    neon_setting = db.session.get(SystemSetting, "global_neon_mode")
+    neon_on = (neon_setting.value == "1") if neon_setting else False
+
+    google_ok = google_is_configured()
+    gemini_keys = [os.environ.get(k, "").strip() for k in ["GEMINI_API_KEY", "GEMINI_API_KEY_2", "GEMINI_API_KEY_3"]]
+    gemini_ok = any(gemini_keys)
+    hf_ok = bool(os.environ.get("HUGGINGFACE_API_TOKEN", "").strip())
+    smtp_ok = _smtp_configured()
+
+    secrets_audit = [
+        {"name": "SESSION_SECRET",            "ok": bool(os.environ.get("SESSION_SECRET")),      "purpose": "Flask session encryption"},
+        {"name": "ADMIN_EMAIL",               "ok": bool(ADMIN_EMAIL),                             "purpose": "Your private admin email"},
+        {"name": "GOOGLE_OAUTH_CLIENT_ID",    "ok": bool(os.environ.get("GOOGLE_OAUTH_CLIENT_ID")), "purpose": "Google login (OAuth)"},
+        {"name": "GOOGLE_OAUTH_CLIENT_SECRET","ok": bool(os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET")), "purpose": "Google login (OAuth)"},
+        {"name": "GEMINI_API_KEY",            "ok": gemini_ok,                                    "purpose": "AI Mentor (Sami) — primary key"},
+        {"name": "GEMINI_API_KEY_2",          "ok": bool(gemini_keys[1]),                         "purpose": "AI Mentor — backup key #2"},
+        {"name": "GEMINI_API_KEY_3",          "ok": bool(gemini_keys[2]),                         "purpose": "AI Mentor — backup key #3"},
+        {"name": "HUGGINGFACE_API_TOKEN",     "ok": hf_ok,                                        "purpose": "HuggingFace AI fallback"},
+        {"name": "SMTP_HOST",                 "ok": smtp_ok,                                       "purpose": "Email verification & password reset"},
+        {"name": "SMTP_USER",                 "ok": smtp_ok,                                       "purpose": "Email sender address"},
+        {"name": "SMTP_PASSWORD",             "ok": smtp_ok,                                       "purpose": "Email SMTP password"},
+        {"name": "CLOUDINARY_CLOUD_NAME",     "ok": cl_configured,                                "purpose": "Image cloud storage (Cloudinary)"},
+        {"name": "CLOUDINARY_API_KEY",        "ok": cl_configured,                                "purpose": "Image cloud storage (Cloudinary)"},
+        {"name": "CLOUDINARY_API_SECRET",     "ok": cl_configured,                                "purpose": "Image cloud storage (Cloudinary)"},
+        {"name": "FIREBASE_STORAGE_BUCKET",   "ok": fb_configured,                                "purpose": "Video cloud storage (Firebase)"},
+        {"name": "FIREBASE_SERVICE_ACCOUNT_JSON", "ok": fb_configured,                           "purpose": "Video cloud storage (Firebase)"},
+    ]
+
+    unread_count = Message.query.filter_by(recipient_id=student.id, is_read=0, group_id=None).count() if student else 0
+
+    return render_template(
+        "admin_master.html",
+        current_student=student,
+        lang=lang, theme=theme,
+        is_rtl=lang in RTL_LANGS,
+        unread_count=unread_count,
+        total_users=total_users,
+        total_files=total_files,
+        users=users,
+        cl_usage=cl_usage,
+        cl_configured=cl_configured,
+        fb_configured=fb_configured,
+        neon_on=neon_on,
+        secrets_audit=secrets_audit,
+        google_ok=google_ok,
+        gemini_ok=gemini_ok,
+        hf_ok=hf_ok,
+        smtp_ok=smtp_ok,
+    )
+
+
+@app.route("/admin-master/toggle-neon", methods=["POST"])
+def admin_toggle_neon():
+    student = current_student()
+    if not _is_admin(student):
+        abort(404)
+    neon_setting = db.session.get(SystemSetting, "global_neon_mode")
+    if neon_setting:
+        neon_setting.value = "0" if neon_setting.value == "1" else "1"
+    else:
+        neon_setting = SystemSetting(key="global_neon_mode", value="1")
+        db.session.add(neon_setting)
+    db.session.commit()
+    new_val = neon_setting.value == "1"
+    socketio.emit("global_neon", {"on": new_val}, broadcast=True)
+    return jsonify({"neon": new_val})
+
+
+@app.route("/admin-master/broadcast", methods=["POST"])
+def admin_broadcast():
+    student = current_student()
+    if not _is_admin(student):
+        abort(404)
+    payload = request.get_json(silent=True) or {}
+    msg = (payload.get("message") or "").strip()
+    if not msg:
+        return jsonify({"error": "empty"}), 400
+    socketio.emit("system_broadcast", {
+        "message": msg,
+        "from": "Admin",
+        "timestamp": datetime.utcnow().isoformat(),
+    }, broadcast=True)
+    return jsonify({"ok": True, "sent_to": "all rooms"})
+
+
+@app.route("/admin-master/grant-admin", methods=["POST"])
+def admin_grant():
+    student = current_student()
+    if not _is_admin(student):
+        abort(404)
+    payload = request.get_json(silent=True) or {}
+    uid = payload.get("user_id")
+    target = db.session.get(Student, uid) if uid else None
+    if not target:
+        return jsonify({"error": "user not found"}), 404
+    target.is_admin = 1 if not target.is_admin else 0
+    db.session.commit()
+    return jsonify({"ok": True, "is_admin": bool(target.is_admin), "username": target.username})
 
 
 # ─── Logout ───────────────────────────────────────────────────────────────────

@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" data-theme="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="robots" content="noindex,nofollow"/>
+  <title>Admin Master — SSAS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet"/>
+  <style>
+    :root{
+      --bg:     #030308;
+      --surface:#0d0d1a;
+      --border: #1a1a33;
+      --neon:   #7c5cff;
+      --cyan:   #38bdf8;
+      --green:  #22c55e;
+      --red:    #ef4444;
+      --amber:  #f59e0b;
+      --text:   #e2e8f0;
+      --muted:  #64748b;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html{font-size:15px;}
+    body{
+      background:var(--bg);color:var(--text);
+      font-family:'Cairo',system-ui,sans-serif;
+      min-height:100vh;
+      background-image:
+        radial-gradient(ellipse 60% 40% at 70% -10%,rgba(124,92,255,.18) 0%,transparent 70%),
+        radial-gradient(ellipse 40% 30% at 10% 80%,rgba(56,189,248,.10) 0%,transparent 70%),
+        repeating-linear-gradient(0deg,transparent,transparent 31px,rgba(124,92,255,.04) 32px),
+        repeating-linear-gradient(90deg,transparent,transparent 31px,rgba(56,189,248,.04) 32px);
+    }
+
+    /* ── Header ── */
+    header{
+      position:sticky;top:0;z-index:200;
+      background:rgba(3,3,8,.88);
+      border-bottom:1px solid var(--border);
+      backdrop-filter:blur(16px);
+      padding:14px clamp(16px,4vw,48px);
+      display:flex;align-items:center;justify-content:space-between;gap:16px;
+    }
+    .admin-brand{
+      display:flex;align-items:center;gap:12px;
+      font-size:1.2rem;font-weight:900;letter-spacing:.5px;
+    }
+    .admin-brand svg{width:32px;height:32px;flex-shrink:0;}
+    .admin-badge{
+      background:linear-gradient(135deg,var(--neon),var(--cyan));
+      color:#fff;padding:3px 10px;border-radius:999px;
+      font-size:.72rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+    }
+    header a{color:var(--muted);font-size:.85rem;font-weight:600;text-decoration:none;}
+    header a:hover{color:var(--cyan);}
+
+    /* ── Layout ── */
+    .admin-wrap{
+      max-width:1280px;margin:0 auto;
+      padding:32px clamp(16px,4vw,48px);
+      display:grid;gap:24px;
+    }
+
+    /* ── Cards ── */
+    .card{
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius:16px;padding:24px;
+      position:relative;overflow:hidden;
+    }
+    .card::before{
+      content:"";position:absolute;inset:0;
+      background:linear-gradient(135deg,rgba(124,92,255,.04) 0%,transparent 60%);
+      pointer-events:none;
+    }
+    .card-title{
+      font-size:.72rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+      color:var(--muted);margin-bottom:16px;display:flex;align-items:center;gap:8px;
+    }
+    .card-title span{
+      width:6px;height:6px;border-radius:50%;
+      background:linear-gradient(135deg,var(--neon),var(--cyan));flex-shrink:0;
+    }
+
+    /* ── Stat grid ── */
+    .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;}
+    .stat{
+      background:rgba(255,255,255,.03);border:1px solid var(--border);
+      border-radius:12px;padding:20px 16px;text-align:center;
+    }
+    .stat-val{font-size:2.2rem;font-weight:900;line-height:1;
+              background:linear-gradient(135deg,var(--neon),var(--cyan));
+              -webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+    .stat-lbl{font-size:.78rem;color:var(--muted);margin-top:6px;}
+
+    /* ── Secrets Audit ── */
+    .audit-list{display:grid;gap:8px;}
+    .audit-row{
+      display:flex;align-items:center;gap:12px;
+      padding:12px 16px;border-radius:10px;
+      background:rgba(255,255,255,.025);border:1px solid var(--border);
+    }
+    .audit-dot{
+      width:10px;height:10px;border-radius:50%;flex-shrink:0;
+    }
+    .audit-dot.ok{background:var(--green);box-shadow:0 0 8px var(--green);}
+    .audit-dot.miss{background:var(--red);box-shadow:0 0 8px var(--red);}
+    .audit-name{font-family:'Courier New',monospace;font-size:.82rem;
+                color:var(--cyan);min-width:220px;}
+    .audit-purpose{font-size:.82rem;color:var(--muted);}
+    .audit-status{margin-left:auto;font-size:.75rem;font-weight:700;
+                  padding:2px 10px;border-radius:999px;}
+    .audit-status.ok{background:rgba(34,197,94,.15);color:var(--green);}
+    .audit-status.miss{background:rgba(239,68,68,.15);color:var(--red);}
+
+    /* ── Cloud cards ── */
+    .provider-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;}
+    .provider-card{
+      border-radius:12px;padding:20px;
+      border:1px solid var(--border);background:rgba(255,255,255,.03);
+    }
+    .provider-name{font-weight:700;font-size:1rem;margin-bottom:8px;display:flex;align-items:center;gap:8px;}
+    .provider-stat{font-size:.82rem;color:var(--muted);margin-top:4px;}
+    .provider-stat b{color:var(--text);}
+
+    /* ── Controls ── */
+    .ctrl-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;}
+    .ctrl-panel{
+      background:rgba(255,255,255,.03);border:1px solid var(--border);
+      border-radius:12px;padding:20px;
+    }
+    .ctrl-title{font-weight:700;font-size:.95rem;margin-bottom:12px;}
+    .ctrl-desc{font-size:.82rem;color:var(--muted);margin-bottom:16px;line-height:1.5;}
+
+    /* ── Buttons ── */
+    .btn{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:10px 20px;border-radius:10px;font-weight:700;
+      font-size:.88rem;cursor:pointer;border:none;
+      transition:opacity .15s,transform .12s;font-family:inherit;
+    }
+    .btn:active{transform:scale(.97);}
+    .btn-neon{background:linear-gradient(135deg,var(--neon),var(--cyan));color:#fff;}
+    .btn-danger{background:linear-gradient(135deg,#b91c1c,#ef4444);color:#fff;}
+    .btn-ghost{background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--border);}
+    .btn:disabled{opacity:.45;cursor:not-allowed;}
+    .btn-full{width:100%;}
+
+    /* ── Toggle ── */
+    .toggle-wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+    .toggle{position:relative;width:52px;height:28px;flex-shrink:0;}
+    .toggle input{opacity:0;width:0;height:0;}
+    .toggle-slider{
+      position:absolute;inset:0;cursor:pointer;border-radius:999px;
+      background:rgba(255,255,255,.1);border:1px solid var(--border);
+      transition:.3s;
+    }
+    .toggle-slider::before{
+      content:"";position:absolute;
+      width:20px;height:20px;left:3px;bottom:3px;
+      border-radius:50%;background:#fff;transition:.3s;
+    }
+    .toggle input:checked+.toggle-slider{
+      background:linear-gradient(135deg,var(--neon),var(--cyan));
+      border-color:transparent;
+    }
+    .toggle input:checked+.toggle-slider::before{transform:translateX(24px);}
+
+    /* ── Broadcast ── */
+    .broadcast-form{display:flex;flex-direction:column;gap:10px;}
+    .broadcast-form textarea{
+      background:rgba(255,255,255,.04);border:1px solid var(--border);
+      border-radius:10px;padding:12px;color:var(--text);font-family:inherit;
+      font-size:.88rem;resize:vertical;min-height:80px;
+    }
+    .broadcast-form textarea:focus{outline:none;border-color:var(--neon);}
+
+    /* ── Users table ── */
+    .tbl-wrap{overflow-x:auto;}
+    table{width:100%;border-collapse:collapse;}
+    th{
+      text-align:left;padding:10px 14px;
+      font-size:.72rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+      color:var(--muted);border-bottom:1px solid var(--border);
+    }
+    td{padding:10px 14px;font-size:.84rem;border-bottom:1px solid rgba(255,255,255,.04);}
+    tr:hover td{background:rgba(255,255,255,.02);}
+    .pill{
+      display:inline-block;padding:2px 10px;border-radius:999px;
+      font-size:.72rem;font-weight:700;
+    }
+    .pill-admin{background:rgba(124,92,255,.2);color:var(--neon);}
+    .pill-user{background:rgba(255,255,255,.06);color:var(--muted);}
+
+    /* ── Toast ── */
+    #admin-toast{
+      position:fixed;bottom:24px;right:24px;z-index:9999;
+      background:linear-gradient(135deg,var(--neon),var(--cyan));
+      color:#fff;padding:12px 20px;border-radius:12px;
+      font-weight:700;font-size:.88rem;
+      box-shadow:0 8px 32px rgba(124,92,255,.4);
+      transform:translateY(80px);opacity:0;
+      transition:transform .3s cubic-bezier(.2,.7,.2,1),opacity .3s;
+      pointer-events:none;
+    }
+    #admin-toast.show{transform:translateY(0);opacity:1;}
+
+    /* ── Responsive ── */
+    @media(max-width:640px){
+      .audit-name{min-width:0;}
+      .audit-purpose{display:none;}
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="admin-brand">
+    <svg viewBox="0 0 48 48" fill="none">
+      <defs>
+        <linearGradient id="dg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#7c5cff"/>
+          <stop offset="100%" stop-color="#38bdf8"/>
+        </linearGradient>
+      </defs>
+      <rect width="48" height="48" rx="12" fill="url(#dg)" opacity=".15"/>
+      <path d="M14 10h12c8.84 0 16 7.16 16 16s-7.16 16-16 16H14V10Z" stroke="url(#dg)" stroke-width="2.5" fill="none"/>
+      <path d="M20 18h6c4.42 0 8 3.58 8 8s-3.58 8-8 8h-6V18Z" fill="url(#dg)" opacity=".6"/>
+    </svg>
+    Admin Master
+    <span class="admin-badge">Private</span>
+  </div>
+  <a href="{{ url_for('index') }}">← Back to App</a>
+</header>
+
+<div id="admin-toast"></div>
+
+<div class="admin-wrap">
+
+  <!-- Stats row -->
+  <div class="card">
+    <div class="card-title"><span></span>Platform Overview</div>
+    <div class="stat-grid">
+      <div class="stat">
+        <div class="stat-val">{{ total_users }}</div>
+        <div class="stat-lbl">Total Users</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val">{{ total_files }}</div>
+        <div class="stat-lbl">Cloud Files</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" id="stat-neon">{{ '🟢' if neon_on else '⚫' }}</div>
+        <div class="stat-lbl">Neon Mode</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val">{{ secrets_audit | selectattr('ok') | list | length }}/{{ secrets_audit | length }}</div>
+        <div class="stat-lbl">Secrets OK</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Secrets Audit -->
+  <div class="card">
+    <div class="card-title"><span></span>Secrets Audit — Environment Variables</div>
+    <div class="audit-list">
+      {% for s in secrets_audit %}
+      <div class="audit-row">
+        <div class="audit-dot {{ 'ok' if s.ok else 'miss' }}"></div>
+        <div class="audit-name">{{ s.name }}</div>
+        <div class="audit-purpose">{{ s.purpose }}</div>
+        <div class="audit-status {{ 'ok' if s.ok else 'miss' }}">{{ 'Connected' if s.ok else 'Missing' }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Cloud Storage -->
+  <div class="card">
+    <div class="card-title"><span></span>Cloud Storage Status</div>
+    <div class="provider-grid">
+      <div class="provider-card" style="border-color:{% if cl_configured %}rgba(124,92,255,.4){% else %}var(--border){% endif %}">
+        <div class="provider-name">
+          {% if cl_configured %}🟢{% else %}🔴{% endif %} Cloudinary
+          <span style="font-size:.72rem;font-weight:400;color:var(--muted)">(Images)</span>
+        </div>
+        {% if cl_configured %}
+          {% if cl_usage %}
+            <div class="provider-stat">Storage: <b>{{ cl_usage.storage_mb }} MB</b></div>
+            <div class="provider-stat">Bandwidth: <b>{{ cl_usage.bandwidth_mb }} MB</b></div>
+            <div class="provider-stat">Credits: <b>{{ cl_usage.credits_used }}/{{ cl_usage.credits_limit }}</b></div>
+          {% else %}
+            <div class="provider-stat" style="color:var(--amber)">Configured — stats unavailable</div>
+          {% endif %}
+        {% else %}
+          <div class="provider-stat">Add <code style="color:var(--cyan)">CLOUDINARY_CLOUD_NAME</code>, <code style="color:var(--cyan)">CLOUDINARY_API_KEY</code>, <code style="color:var(--cyan)">CLOUDINARY_API_SECRET</code> to Replit Secrets to activate.</div>
+        {% endif %}
+      </div>
+
+      <div class="provider-card" style="border-color:{% if fb_configured %}rgba(56,189,248,.4){% else %}var(--border){% endif %}">
+        <div class="provider-name">
+          {% if fb_configured %}🟢{% else %}🔴{% endif %} Firebase Storage
+          <span style="font-size:.72rem;font-weight:400;color:var(--muted)">(Videos)</span>
+        </div>
+        {% if fb_configured %}
+          <div class="provider-stat" style="color:var(--green)">Bucket: <b>{{ '' }}</b> Active</div>
+        {% else %}
+          <div class="provider-stat">Add <code style="color:var(--cyan)">FIREBASE_STORAGE_BUCKET</code> and <code style="color:var(--cyan)">FIREBASE_SERVICE_ACCOUNT_JSON</code> to Replit Secrets to activate.</div>
+        {% endif %}
+      </div>
+
+      <div class="provider-card">
+        <div class="provider-name">💾 Local Disk <span style="font-size:.72rem;font-weight:400;color:var(--muted)">(Fallback)</span></div>
+        <div class="provider-stat" style="color:var(--green)">Always available</div>
+        <div class="provider-stat">Files: <code style="color:var(--cyan)">static/uploads/cloud/</code></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="card">
+    <div class="card-title"><span></span>Admin Controls</div>
+    <div class="ctrl-grid">
+
+      <!-- Neon Mode Toggle -->
+      <div class="ctrl-panel">
+        <div class="ctrl-title">⚡ Global Neon Mode</div>
+        <div class="ctrl-desc">Forces all users into the cinematic neon theme in real-time via WebSocket.</div>
+        <div class="toggle-wrap">
+          <span style="font-size:.88rem;color:var(--muted)" id="neon-label">{{ 'ACTIVE' if neon_on else 'OFF' }}</span>
+          <label class="toggle">
+            <input type="checkbox" id="neon-toggle" {% if neon_on %}checked{% endif %}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Broadcast -->
+      <div class="ctrl-panel">
+        <div class="ctrl-title">📡 System Broadcast</div>
+        <div class="ctrl-desc">Send a message to all active users in all chat rooms instantly.</div>
+        <div class="broadcast-form">
+          <textarea id="broadcast-msg" placeholder="Type a system message…"></textarea>
+          <button class="btn btn-neon btn-full" onclick="sendBroadcast()">Send to All Users</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Users Table -->
+  <div class="card">
+    <div class="card-title"><span></span>Recent Users (last 50)</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th><th>Username</th><th>Email</th>
+            <th>Level</th><th>School</th><th>Role</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td>{{ u.id }}</td>
+            <td><b>{{ u.username }}</b></td>
+            <td style="color:var(--muted)">{{ u.email or '—' }}</td>
+            <td>Lvl {{ u.level }}</td>
+            <td style="font-size:.78rem;color:var(--muted)">{{ (u.school_name or '—')[:30] }}</td>
+            <td>
+              <span class="pill {{ 'pill-admin' if u.is_admin else 'pill-user' }}">
+                {{ 'Admin' if u.is_admin else 'User' }}
+              </span>
+            </td>
+            <td>
+              <button class="btn btn-ghost" style="padding:5px 12px;font-size:.75rem"
+                      onclick="toggleAdmin({{ u.id }}, this)">
+                {{ 'Revoke' if u.is_admin else 'Grant Admin' }}
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+const socket = io({ transports: ['websocket','polling'] });
+
+function toast(msg, ok=true){
+  const el = document.getElementById('admin-toast');
+  el.textContent = msg;
+  el.style.background = ok
+    ? 'linear-gradient(135deg,#7c5cff,#38bdf8)'
+    : 'linear-gradient(135deg,#b91c1c,#ef4444)';
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 3000);
+}
+
+document.getElementById('neon-toggle').addEventListener('change', function(){
+  fetch('/admin-master/toggle-neon', {
+    method:'POST',
+    headers:{'X-Requested-With':'XMLHttpRequest'}
+  }).then(r=>r.json()).then(d=>{
+    document.getElementById('neon-label').textContent = d.neon ? 'ACTIVE' : 'OFF';
+    document.getElementById('stat-neon').textContent   = d.neon ? '🟢' : '⚫';
+    toast(d.neon ? '⚡ Neon Mode ENABLED for all users' : 'Neon Mode disabled');
+  }).catch(()=>toast('Error toggling neon', false));
+});
+
+function sendBroadcast(){
+  const msg = document.getElementById('broadcast-msg').value.trim();
+  if(!msg){ toast('Write a message first', false); return; }
+  fetch('/admin-master/broadcast',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({message: msg})
+  }).then(r=>r.json()).then(d=>{
+    toast('📡 Broadcast sent to all users!');
+    document.getElementById('broadcast-msg').value = '';
+  }).catch(()=>toast('Broadcast failed', false));
+}
+
+function toggleAdmin(uid, btn){
+  fetch('/admin-master/grant-admin',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({user_id: uid})
+  }).then(r=>r.json()).then(d=>{
+    btn.textContent = d.is_admin ? 'Revoke' : 'Grant Admin';
+    const row = btn.closest('tr');
+    const pill = row.querySelector('.pill');
+    if(d.is_admin){
+      pill.className='pill pill-admin'; pill.textContent='Admin';
+    } else {
+      pill.className='pill pill-user'; pill.textContent='User';
+    }
+    toast((d.is_admin ? '🛡 ' : '👤 ') + d.username + (d.is_admin?' is now Admin':' demoted to User'));
+  }).catch(()=>toast('Action failed', false));
+}
+
+socket.on('system_broadcast', (d)=>{
+  toast('📡 Broadcast: ' + d.message);
+});
+</script>
+</body>
+</html>

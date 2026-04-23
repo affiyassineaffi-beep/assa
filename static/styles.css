@@ -1366,3 +1366,50 @@ select:focus-visible, textarea:focus-visible {
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: 999px;
 }
+
+/* ── Admin: System Broadcast Banner ───────────────── */
+.system-broadcast {
+  position: fixed; bottom: 80px; left: 50%; z-index: 99990;
+  transform: translateX(-50%) translateY(80px);
+  background: linear-gradient(135deg, rgba(124,92,255,.95), rgba(56,189,248,.95));
+  color: #fff;
+  padding: 14px 24px; border-radius: 16px;
+  display: flex; align-items: center; gap: 10px;
+  font-weight: 700; font-size: .9rem;
+  box-shadow: 0 8px 40px rgba(124,92,255,.5), 0 0 0 1px rgba(255,255,255,.1);
+  backdrop-filter: blur(12px);
+  max-width: 90vw; text-align: center;
+  animation: sbSlideIn .4s cubic-bezier(.2,.7,.2,1) forwards,
+             sbSlideOut .4s cubic-bezier(.4,0,.2,1) 6.6s forwards;
+}
+@keyframes sbSlideIn { to { transform: translateX(-50%) translateY(0); } }
+@keyframes sbSlideOut { to { transform: translateX(-50%) translateY(100px); opacity: 0; } }
+.sb-icon { font-size: 1.2rem; flex-shrink: 0; }
+
+/* ── Admin: Global Neon Mode ──────────────────────── */
+body.global-neon {
+  background: #030308 !important;
+  color: #e2e8f0 !important;
+}
+body.global-neon .navbar {
+  background: rgba(3,3,8,.9) !important;
+  border-bottom-color: rgba(124,92,255,.3) !important;
+}
+body.global-neon .card,
+body.global-neon .glass,
+body.global-neon .auth-card,
+body.global-neon .hero-card {
+  background: rgba(13,13,26,.9) !important;
+  border-color: rgba(124,92,255,.25) !important;
+  color: #e2e8f0 !important;
+}
+body.global-neon .navbar-brand,
+body.global-neon .nav-link { color: #e2e8f0 !important; }
+body.global-neon a { color: #38bdf8 !important; }
+body.global-neon::after {
+  content: "";
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 70% -10%,rgba(124,92,255,.14) 0%,transparent 70%),
+    radial-gradient(ellipse 40% 30% at 10% 90%,rgba(56,189,248,.08) 0%,transparent 70%);
+}

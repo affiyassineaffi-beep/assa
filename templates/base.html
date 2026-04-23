@@ -334,13 +334,28 @@
                     '+' + msg.awarded + ' XP';
     document.body.appendChild(t);
     setTimeout(() => t.remove(), 2400);
-    // Live update any XP bars/cards on the page
     document.querySelectorAll('[data-xp-points]').forEach(el => el.textContent = msg.points);
     document.querySelectorAll('[data-xp-level]').forEach(el => el.textContent = msg.level);
     document.querySelectorAll('[data-xp-bar]').forEach(el => {
       const pct = Math.min(100, (msg.experience / msg.next_level_at) * 100);
       el.style.width = pct + '%';
     });
+  });
+
+  // Admin: Global Neon Mode
+  s.on('global_neon', (msg) => {
+    document.documentElement.classList.toggle('global-neon', !!msg.on);
+    document.body.classList.toggle('global-neon', !!msg.on);
+  });
+
+  // Admin: System Broadcast
+  s.on('system_broadcast', (msg) => {
+    const el = document.createElement('div');
+    el.className = 'system-broadcast';
+    el.innerHTML = '<span class="sb-icon">📡</span><span class="sb-text">' +
+                   (msg.message || '') + '</span>';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 7000);
   });
 })();
 </script>
