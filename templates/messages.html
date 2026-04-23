@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Discussions · {{ t('app_name') }}{% endblock %}
+{% block content %}
+<div class="container narrow">
+  <header class="dm-page-head">
+    <h1>Discussions</h1>
+    <p class="muted">Vos conversations directes en temps réel.</p>
+  </header>
+
+  <section class="card glass dm-new-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <h2 style="margin:0">Nouvelle discussion</h2>
+      <a href="{{ url_for('group_new') }}" class="btn btn-primary btn-sm">👥 {{ t('new_group') }}</a>
+    </div>
+    <form method="get" id="dm-start-form" class="dm-start" style="margin-top:12px">
+      <select id="dm-start-select" required>
+        <option value="">Choisir un étudiant…</option>
+        {% for s in all_students %}
+          <option value="{{ s.id }}">
+            {{ s.username }}{% if s.class_section %} — {{ s.class_section }}{% endif %}
+          </option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-primary">Ouvrir</button>
+    </form>
+  </section>
+
+  {% if groups %}
+  <section class="card glass">
+    <h2>👥 Mes groupes</h2>
+    <ul class="conv-list">
+      {% for g in groups %}
+        <li>
+          <a href="{{ url_for('group_chat', gid=g.id) }}" class="conv-row">
+            <span class="conv-avatar" style="background:linear-gradient(135deg,#38bdf8,#7c5cff)">👥</span>
+            <div class="conv-meta">
+              <div class="conv-top">
+                <strong>{{ g.name }}</strong>
+                <span class="muted small">{{ g.created_at.strftime('%d/%m') }}</span>
+              </div>
+              <div class="conv-bottom">
+                <span class="conv-snippet">{{ g.description or 'Discussion de groupe' }}</span>
+              </div>
+            </div>
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <section class="card glass">
+    <h2>Conversations</h2>
+    {% if not conversations %}
+      <p class="muted">Aucune conversation pour l'instant.</p>
+    {% else %}
+      <ul class="conv-list">
+        {% for c in conversations %}
+          {% set p = c.peer %}
+          <li>
+            <a href="{{ url_for('chat', peer_id=p.id) }}" class="conv-row">
+              <span class="conv-avatar" style="background:{{ school_badge_color(p.school_name or '') }}">
+                {{ (p.username or '?')[0]|upper }}
+              </span>
+              <div class="conv-meta">
+                <div class="conv-top">
+                  <strong>{{ p.username }}</strong>
+                  <span class="muted small">{{ c.last.created_at.strftime('%d/%m %H:%M') }}</span>
+                </div>
+                <div class="conv-bottom">
+                  <span class="conv-snippet">
+                    {% if c.last.sender_id == student.id %}<em>Vous : </em>{% endif %}
+                    {{ c.last.body }}
+                  </span>
+                  {% if c.unread > 0 %}
+                    <span class="conv-unread">{{ c.unread }}</span>
+                  {% endif %}
+                </div>
+              </div>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+new TomSelect('#dm-start-select', { allowEmptyOption: true });
+document.getElementById('dm-start-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const id = document.getElementById('dm-start-select').value;
+  if (id) window.location.href = '/chat/' + id;
+});
+</script>
+{% endblock %}

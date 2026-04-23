@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Focus · Pomodoro{% endblock %}
+{% block content %}
+<div class="container narrow">
+  <header class="dm-page-head" style="text-align:center">
+    <h1>🎯 Mode Focus</h1>
+    <p class="muted">Concentre-toi 25 min, gagne +50 XP. Pause 5 min entre les sessions.</p>
+  </header>
+
+  <section class="card glass focus-card">
+    <div class="focus-mode">
+      <button type="button" class="focus-mode-btn active" data-mode="work" data-mins="25">Travail 25 min</button>
+      <button type="button" class="focus-mode-btn" data-mode="short" data-mins="5">Pause 5 min</button>
+      <button type="button" class="focus-mode-btn" data-mode="long" data-mins="15">Pause 15 min</button>
+    </div>
+
+    <div class="focus-clock" id="focus-clock">25:00</div>
+
+    <div class="focus-controls">
+      <button type="button" class="btn btn-primary" id="focus-start">▶ Démarrer</button>
+      <button type="button" class="btn" id="focus-reset">↺ Réinitialiser</button>
+    </div>
+
+    <div class="focus-stats muted small" id="focus-stats">
+      Sessions terminées aujourd'hui : <strong id="focus-done">0</strong>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  let mode = 'work', mins = 25, secs = 0, running = false, timer = null, startedAt = 0;
+  const clock = document.getElementById('focus-clock');
+  const startBtn = document.getElementById('focus-start');
+  const resetBtn = document.getElementById('focus-reset');
+  const doneEl = document.getElementById('focus-done');
+  const today = new Date().toISOString().slice(0,10);
+  let done = parseInt(localStorage.getItem('ssas_pomo_'+today) || '0', 10);
+  doneEl.textContent = done;
+
+  function render(){
+    const m = String(mins).padStart(2,'0'), s = String(secs).padStart(2,'0');
+    clock.textContent = m + ':' + s;
+  }
+
+  function setMode(newMode, m){
+    mode = newMode; mins = m; secs = 0; running = false;
+    clearInterval(timer);
+    startBtn.textContent = '▶ Démarrer';
+    render();
+  }
+
+  document.querySelectorAll('.focus-mode-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.focus-mode-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      setMode(b.dataset.mode, parseInt(b.dataset.mins, 10));
+    });
+  });
+
+  startBtn.addEventListener('click', () => {
+    if (running){
+      running = false; clearInterval(timer); startBtn.textContent = '▶ Reprendre';
+      return;
+    }
+    running = true; startBtn.textContent = '⏸ Pause';
+    if (!startedAt) startedAt = Date.now();
+    timer = setInterval(tick, 1000);
+  });
+
+  resetBtn.addEventListener('click', () => {
+    const active = document.querySelector('.focus-mode-btn.active');
+    setMode(active.dataset.mode, parseInt(active.dataset.mins, 10));
+    startedAt = 0;
+  });
+
+  function tick(){
+    if (secs === 0){
+      if (mins === 0){ finish(); return; }
+      mins--; secs = 59;
+    } else { secs--; }
+    render();
+  }
+
+  async function finish(){
+    clearInterval(timer); running = false;
+    startBtn.textContent = '▶ Démarrer';
+    if (mode === 'work'){
+      done++;
+      localStorage.setItem('ssas_pomo_'+today, String(done));
+      doneEl.textContent = done;
+      try {
+        const r = await fetch('/api/focus/complete', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ minutes: 25 }),
+        });
+        const d = await r.json();
+        if (d && d.awarded){
+          alert('🎉 Session terminée — +' + d.awarded + ' XP ! (Niveau ' + d.level + ')');
+        }
+      } catch(e){}
+    } else {
+      alert('Pause terminée. Reprends le travail !');
+    }
+    startedAt = 0;
+  }
+
+  render();
+})();
+</script>
+{% endblock %}

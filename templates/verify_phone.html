@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Vérification téléphone{% endblock %}
+{% block content %}
+<div class="container narrow">
+  <div class="auth-card">
+    <p class="eyebrow">{{ t('app_name') }}</p>
+    <h1 class="auth-title">📱 Vérification du téléphone</h1>
+
+    {% if student.phone_verified %}
+      <p class="auth-lead">Ton numéro <strong>{{ student.phone }}</strong> est déjà vérifié ✅</p>
+      <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-full">Retour</a>
+    {% else %}
+      <p class="auth-lead">
+        Renseigne ton numéro et reçois un code à 6 chiffres par SMS.
+      </p>
+
+      <form method="post" class="form">
+        <input type="hidden" name="action" value="send"/>
+        <label class="field">
+          <span>Numéro de téléphone</span>
+          <input type="tel" name="phone" value="{{ student.phone or '' }}"
+                 placeholder="+216 XX XXX XXX" required/>
+        </label>
+        <button type="submit" class="btn btn-secondary btn-full">Envoyer le code</button>
+      </form>
+
+      <div class="divider"><span>puis</span></div>
+
+      <form method="post" class="form">
+        <input type="hidden" name="action" value="verify"/>
+        <label class="field">
+          <span>Code reçu</span>
+          <input type="text" name="code" inputmode="numeric"
+                 pattern="[0-9]{4,8}" maxlength="8" required
+                 placeholder="123456"/>
+        </label>
+        <button type="submit" class="btn btn-primary btn-full">Vérifier</button>
+      </form>
+
+      <p class="verify-hint" style="margin-top:14px">
+        Astuce dev : le code OTP est imprimé dans la console du serveur.
+      </p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

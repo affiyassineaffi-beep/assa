@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% block title %}Lecteur audio · {{ t('app_name') }}{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="player-page">
+    <header class="player-page-head">
+      <h1>🎧 Lecteur d'étude</h1>
+      <p class="muted">Ajoutez des pistes YouTube ou des fichiers audio. La lecture continue pendant que vous naviguez sur SSAS.</p>
+      <div class="sync-actions" style="margin-top:.6rem;display:flex;gap:.5rem;flex-wrap:wrap">
+        <button type="button" class="btn btn-primary btn-sm"
+                onclick="window.SSASPlayer && window.SSASPlayer.startSyncHost()">
+          🔗 Écouter ensemble (héberger)
+        </button>
+        <span class="muted small">Le lien d'invitation sera copié dans ton presse-papier.</span>
+      </div>
+    </header>
+
+    <section class="player-add-card">
+      <h2>🔎 Rechercher sur YouTube</h2>
+
+      <div class="yt-search-bar glass">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" class="yt-search-icon">
+          <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
+        </svg>
+        <input type="text" id="yt-search-input" placeholder="Lo-fi study, cours physique bac, méditation…"
+               autocomplete="off" maxlength="120"/>
+        <button type="button" class="btn btn-primary yt-search-btn" id="yt-search-btn">Rechercher</button>
+      </div>
+
+      <div class="yt-filter-row">
+        <button type="button" class="filter-pill active" data-mode="music">🎵 Musique</button>
+        <button type="button" class="filter-pill" data-mode="edu">🎓 Éducatif</button>
+        <button type="button" class="filter-pill" data-mode="all">🌐 Tous</button>
+
+        <div class="yt-target-playlist">
+          <label for="yt-target-pl" class="muted small">Ajouter à :</label>
+          <input type="text" id="yt-target-pl" list="playlist-options" value="Study Tracks"/>
+          <datalist id="playlist-options">
+            {% for p in playlists %}<option value="{{ p }}"></option>{% endfor %}
+          </datalist>
+        </div>
+      </div>
+
+      <div class="yt-results" id="yt-results" aria-live="polite">
+        <p class="muted yt-hint">Tape une recherche pour découvrir de la musique d'étude ou des contenus éducatifs.</p>
+      </div>
+
+      <details class="yt-fallback">
+        <summary class="muted small">+ Importer un fichier audio (MP3, WAV, OGG — max 25 Mo)</summary>
+        <form method="post" action="{{ url_for('player_add') }}" enctype="multipart/form-data" class="form" style="margin-top:12px">
+          <input type="hidden" name="kind" value="audio"/>
+          <label class="field">
+            <span>Titre (optionnel)</span>
+            <input type="text" name="title" placeholder="Mon morceau"/>
+          </label>
+          <label class="field">
+            <span>Playlist</span>
+            <input type="text" name="playlist" list="playlist-options" value="Study Tracks"/>
+          </label>
+          <label class="field">
+            <span>Fichier audio</span>
+            <input type="file" name="audio_file" accept="audio/*" required/>
+          </label>
+          <button type="submit" class="btn btn-primary">Importer</button>
+        </form>
+      </details>
+    </section>
+
+    <section class="player-list-card">
+      <h2>Mes pistes</h2>
+      {% if not tracks %}
+        <p class="muted">Aucune piste pour l'instant. Ajoutez-en une ci-dessus.</p>
+      {% else %}
+        {% set grouped = {} %}
+        {% for tr in tracks %}
+          {% set _ = grouped.setdefault(tr.playlist, []).append(tr) %}
+        {% endfor %}
+        {% for pl, items in grouped.items() %}
+          <h3 class="playlist-name">{{ pl }} <span class="muted small">({{ items|length }})</span></h3>
+          <ul class="track-list">
+            {% for tr in items %}
+              <li class="track-row" data-track-id="{{ tr.id }}">
+                <button type="button" class="track-play" data-id="{{ tr.id }}" data-kind="{{ tr.kind }}"
+                        data-source="{{ tr.source }}" data-title="{{ tr.title }}">▶</button>
+                <div class="track-meta">
+                  <strong>{{ tr.title }}</strong>
+                  <span class="muted small">{{ 'YouTube' if tr.kind == 'youtube' else 'Audio' }}</span>
+                </div>
+                <form method="post" action="{{ url_for('player_delete', tid=tr.id) }}"
+                      onsubmit="return confirm('Supprimer cette piste ?')">
+                  <button type="submit" class="track-del" title="Supprimer">✕</button>
+                </form>
+              </li>
+            {% endfor %}
+          </ul>
+        {% endfor %}
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  const input    = document.getElementById('yt-search-input');
+  const btn      = document.getElementById('yt-search-btn');
+  const results  = document.getElementById('yt-results');
+  const plInput  = document.getElementById('yt-target-pl');
+  const pills    = document.querySelectorAll('.filter-pill');
+  let mode = 'music';
+  let lastQuery = '';
+
+  // Filter pill toggles
+  pills.forEach(p => p.addEventListener('click', () => {
+    pills.forEach(x => x.classList.remove('active'));
+    p.classList.add('active');
+    mode = p.dataset.mode;
+    if (lastQuery) doSearch(lastQuery);
+  }));
+
+  function escapeHtml(s){
+    return (s || '').replace(/[&<>"']/g, c => (
+      {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]
+    ));
+  }
+
+  function showHint(msg, kind){
+    results.innerHTML = `<p class="muted yt-hint ${kind || ''}">${escapeHtml(msg)}</p>`;
+  }
+
+  function renderResults(items){
+    if (!items.length){
+      showHint('Aucun résultat. Essaie une autre recherche.');
+      return;
+    }
+    results.innerHTML = items.map(it => `
+      <article class="yt-card" data-id="${escapeHtml(it.video_id)}"
+               data-title="${escapeHtml(it.title)}"
+               data-channel="${escapeHtml(it.channel)}">
+        <div class="yt-thumb">
+          <img loading="lazy" src="${escapeHtml(it.thumbnail)}" alt=""/>
+          <span class="yt-play-overlay">▶</span>
+        </div>
+        <div class="yt-card-meta">
+          <strong class="yt-title">${escapeHtml(it.title)}</strong>
+          <span class="muted small">${escapeHtml(it.channel)}</span>
+        </div>
+      </article>
+    `).join('');
+
+    results.querySelectorAll('.yt-card').forEach(card => {
+      card.addEventListener('click', () => playAndSave(card));
+    });
+  }
+
+  async function doSearch(q){
+    lastQuery = q;
+    showHint('Recherche en cours…', 'loading');
+    try {
+      const url = `/api/youtube/search?q=${encodeURIComponent(q)}&mode=${mode}`;
+      const r = await fetch(url);
+      if (!r.ok){
+        const err = await r.json().catch(() => ({}));
+        showHint('Erreur : ' + (err.error || r.status));
+        return;
+      }
+      const data = await r.json();
+      renderResults(data.results || []);
+    } catch (e){
+      showHint('Erreur réseau : ' + e.message);
+    }
+  }
+
+  async function playAndSave(card){
+    const vid     = card.dataset.id;
+    const title   = card.dataset.title;
+    const channel = card.dataset.channel;
+    const playlist = (plInput.value || 'Study Tracks').trim() || 'Study Tracks';
+
+    card.classList.add('yt-card-loading');
+
+    // Save to backend playlist (idempotent — backend dedupes)
+    try {
+      const r = await fetch('/player/quick_add', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({video_id: vid, title, channel, playlist}),
+      });
+      const data = await r.json();
+      if (data.track && window.SSASPlayer){
+        window.SSASPlayer.playTrack({
+          id: data.track.id,
+          kind: 'youtube',
+          source: vid,
+          title: data.track.title || title,
+        });
+      }
+      card.classList.add('yt-card-added');
+      // Soft refresh of the list below after a brief delay
+      setTimeout(() => { window.location.hash = '#tracks'; window.location.reload(); }, 1200);
+    } catch (e){
+      alert('Impossible d\'ajouter : ' + e.message);
+    } finally {
+      card.classList.remove('yt-card-loading');
+    }
+  }
+
+  btn.addEventListener('click', () => {
+    const q = input.value.trim();
+    if (q) doSearch(q);
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter'){ e.preventDefault(); btn.click(); }
+  });
+
+  // Wire existing track-play buttons to the global mini-player
+  document.querySelectorAll('.track-play').forEach(b => {
+    b.addEventListener('click', () => {
+      if (window.SSASPlayer){
+        window.SSASPlayer.playTrack({
+          id: parseInt(b.dataset.id, 10),
+          kind: b.dataset.kind,
+          source: b.dataset.source,
+          title: b.dataset.title,
+        });
+      }
+    });
+  });
+})();
+</script>
+{% endblock %}

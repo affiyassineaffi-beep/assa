@@ -1,0 +1,413 @@
+{# Persistent mini-player rendered on every page when logged in #}
+<div id="ssas-player" class="ssas-player ssas-player-hidden" aria-label="Lecteur audio">
+  <!-- Hidden YouTube iframe target -->
+  <div class="ssas-yt-wrap" id="ssas-yt-wrap">
+    <div id="ssas-yt-frame"></div>
+  </div>
+
+  <!-- HTML5 audio element for local files -->
+  <audio id="ssas-audio" preload="metadata"></audio>
+
+  <div class="ssas-player-bar">
+    <div class="ssas-track-info">
+      <div class="ssas-track-title" id="ssas-title">Aucune piste</div>
+      <div class="ssas-track-sub" id="ssas-sub">—</div>
+    </div>
+
+    <div class="ssas-controls">
+      <button type="button" id="ssas-prev" title="Précédent">⏮</button>
+      <button type="button" id="ssas-play" title="Lecture/Pause" class="ssas-play-btn">▶</button>
+      <button type="button" id="ssas-next" title="Suivant">⏭</button>
+    </div>
+
+    <div class="ssas-progress-wrap">
+      <span id="ssas-cur">0:00</span>
+      <input type="range" id="ssas-progress" min="0" max="100" value="0" step="0.1"/>
+      <span id="ssas-dur">0:00</span>
+    </div>
+
+    <div class="ssas-extras">
+      <label class="ssas-music-mode" title="Mode musique (cache la vidéo)">
+        <input type="checkbox" id="ssas-music-mode" checked/>
+        <span>Musique</span>
+      </label>
+      <input type="range" id="ssas-vol" min="0" max="100" value="80" title="Volume"/>
+      <button type="button" id="ssas-close" title="Fermer">✕</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+(function(){
+  const STORAGE_KEY = 'ssas_player_state_v1';
+
+  const el = (id) => document.getElementById(id);
+  const root = el('ssas-player');
+  const ytWrap = el('ssas-yt-wrap');
+  const audio = el('ssas-audio');
+  const titleEl = el('ssas-title');
+  const subEl = el('ssas-sub');
+  const playBtn = el('ssas-play');
+  const prevBtn = el('ssas-prev');
+  const nextBtn = el('ssas-next');
+  const progress = el('ssas-progress');
+  const curEl = el('ssas-cur');
+  const durEl = el('ssas-dur');
+  const volSlider = el('ssas-vol');
+  const musicMode = el('ssas-music-mode');
+  const closeBtn = el('ssas-close');
+
+  let tracks = [];          // playlist loaded from /api/player/tracks
+  let currentIndex = -1;
+  let currentKind = null;   // 'youtube' | 'audio'
+  let yt = null;            // YouTube player instance
+  let ytReady = false;
+  let isPlaying = false;
+  let progressTimer = null;
+
+  function fmt(sec){
+    if (!isFinite(sec) || sec < 0) sec = 0;
+    const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+    return m + ':' + (s < 10 ? '0' + s : s);
+  }
+
+  function saveState(){
+    try {
+      const t = tracks[currentIndex];
+      if (!t) { localStorage.removeItem(STORAGE_KEY); return; }
+      const pos = currentKind === 'youtube'
+        ? (yt && yt.getCurrentTime ? yt.getCurrentTime() : 0)
+        : audio.currentTime;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        trackId: t.id, position: pos || 0,
+        volume: parseInt(volSlider.value, 10),
+        musicMode: musicMode.checked,
+        wasPlaying: isPlaying
+      }));
+    } catch(e){}
+  }
+
+  function loadState(){
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); }
+    catch(e){ return null; }
+  }
+
+  function showPlayer(){ root.classList.remove('ssas-player-hidden'); }
+  function applyMusicMode(){
+    ytWrap.classList.toggle('ssas-yt-hidden', musicMode.checked);
+  }
+
+  // ── YouTube IFrame API ──
+  window.onYouTubeIframeAPIReady = function(){
+    yt = new YT.Player('ssas-yt-frame', {
+      height: '180', width: '320', videoId: '',
+      playerVars: { playsinline: 1, controls: 0, rel: 0, modestbranding: 1 },
+      events: {
+        onReady: () => {
+          ytReady = true;
+          yt.setVolume(parseInt(volSlider.value, 10));
+          tryRestoreOnce();
+        },
+        onStateChange: (e) => {
+          if (e.data === YT.PlayerState.PLAYING){
+            isPlaying = true; playBtn.textContent = '⏸'; startProgressLoop();
+          } else if (e.data === YT.PlayerState.PAUSED){
+            isPlaying = false; playBtn.textContent = '▶'; stopProgressLoop(); saveState();
+          } else if (e.data === YT.PlayerState.ENDED){
+            isPlaying = false; playBtn.textContent = '▶'; next();
+          }
+        }
+      }
+    });
+  };
+
+  function startProgressLoop(){
+    stopProgressLoop();
+    progressTimer = setInterval(() => {
+      let cur = 0, dur = 0;
+      if (currentKind === 'youtube' && yt && yt.getCurrentTime){
+        cur = yt.getCurrentTime() || 0; dur = yt.getDuration() || 0;
+      } else if (currentKind === 'audio'){
+        cur = audio.currentTime || 0; dur = audio.duration || 0;
+      }
+      curEl.textContent = fmt(cur);
+      durEl.textContent = fmt(dur);
+      progress.max = dur || 100;
+      if (!progress.dataset.dragging) progress.value = cur;
+      saveState();
+    }, 750);
+  }
+  function stopProgressLoop(){
+    if (progressTimer){ clearInterval(progressTimer); progressTimer = null; }
+  }
+
+  // ── Track loading + playback ──
+  async function loadTracks(){
+    try {
+      const r = await fetch('/api/player/tracks');
+      tracks = await r.json();
+    } catch(e){ tracks = []; }
+  }
+
+  function indexOfId(id){
+    return tracks.findIndex(t => t.id === id);
+  }
+
+  async function playTrack(track, opts){
+    opts = opts || {};
+    if (!tracks.length) await loadTracks();
+    let idx = indexOfId(track.id);
+    if (idx < 0){
+      // Track not in cached list — refresh and retry
+      await loadTracks();
+      idx = indexOfId(track.id);
+      if (idx < 0){ tracks.push(track); idx = tracks.length - 1; }
+    }
+    currentIndex = idx;
+    const t = tracks[currentIndex];
+    currentKind = t.kind;
+    titleEl.textContent = t.title;
+    subEl.textContent = (t.kind === 'youtube' ? 'YouTube' : 'Audio') + ' · ' + (t.playlist || '');
+    showPlayer();
+    applyMusicMode();
+
+    if (t.kind === 'youtube'){
+      audio.pause();
+      if (ytReady){
+        yt.loadVideoById({ videoId: t.source, startSeconds: opts.startAt || 0 });
+        if (opts.autoplay !== false) yt.playVideo(); else yt.pauseVideo();
+      }
+    } else {
+      if (yt && ytReady) yt.stopVideo();
+      audio.src = t.source;
+      audio.currentTime = opts.startAt || 0;
+      audio.volume = parseInt(volSlider.value, 10) / 100;
+      if (opts.autoplay !== false){
+        audio.play().catch(() => { isPlaying = false; playBtn.textContent = '▶'; });
+      }
+    }
+  }
+
+  function togglePlay(){
+    if (currentIndex < 0) return;
+    if (currentKind === 'youtube'){
+      if (!ytReady) return;
+      const st = yt.getPlayerState();
+      if (st === YT.PlayerState.PLAYING) yt.pauseVideo(); else yt.playVideo();
+    } else {
+      if (audio.paused) audio.play(); else audio.pause();
+    }
+  }
+
+  function next(){
+    if (!tracks.length) return;
+    const i = (currentIndex + 1) % tracks.length;
+    playTrack(tracks[i]);
+  }
+  function prev(){
+    if (!tracks.length) return;
+    const i = (currentIndex - 1 + tracks.length) % tracks.length;
+    playTrack(tracks[i]);
+  }
+
+  // ── Audio element wiring ──
+  audio.addEventListener('play',  () => { isPlaying = true;  playBtn.textContent = '⏸'; startProgressLoop(); });
+  audio.addEventListener('pause', () => { isPlaying = false; playBtn.textContent = '▶'; stopProgressLoop(); saveState(); });
+  audio.addEventListener('ended', () => next());
+
+  playBtn.addEventListener('click', togglePlay);
+  nextBtn.addEventListener('click', next);
+  prevBtn.addEventListener('click', prev);
+  closeBtn.addEventListener('click', () => {
+    if (currentKind === 'youtube' && yt && ytReady) yt.stopVideo();
+    audio.pause(); audio.src = '';
+    root.classList.add('ssas-player-hidden');
+    isPlaying = false;
+    localStorage.removeItem(STORAGE_KEY);
+  });
+
+  progress.addEventListener('mousedown', () => progress.dataset.dragging = '1');
+  progress.addEventListener('touchstart', () => progress.dataset.dragging = '1');
+  progress.addEventListener('change', () => {
+    const v = parseFloat(progress.value);
+    if (currentKind === 'youtube' && yt && ytReady) yt.seekTo(v, true);
+    else audio.currentTime = v;
+    delete progress.dataset.dragging;
+  });
+
+  volSlider.addEventListener('input', () => {
+    const v = parseInt(volSlider.value, 10);
+    if (yt && ytReady) yt.setVolume(v);
+    audio.volume = v / 100;
+    saveState();
+  });
+  musicMode.addEventListener('change', () => { applyMusicMode(); saveState(); });
+
+  // ── Restore previous track + position after navigation/refresh ──
+  let restored = false;
+  async function tryRestoreOnce(){
+    if (restored) return;
+    restored = true;
+    const st = loadState();
+    if (!st) return;
+    if (st.volume != null) volSlider.value = st.volume;
+    if (st.musicMode != null) musicMode.checked = st.musicMode;
+    applyMusicMode();
+    if (!tracks.length) await loadTracks();
+    const t = tracks.find(x => x.id === st.trackId);
+    if (!t) return;
+    playTrack(t, { startAt: st.position || 0, autoplay: false });
+  }
+
+  // Save state when leaving the page so the next page can resume seamlessly
+  window.addEventListener('beforeunload', saveState);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) saveState(); });
+
+  // Bootstrap
+  loadTracks().then(() => {
+    // If YT API is already initialized (cached), restore now
+    if (ytReady) tryRestoreOnce();
+    else {
+      // For audio-only restore, don't wait for YT
+      const st = loadState();
+      if (st){
+        const t = tracks.find(x => x.id === st.trackId);
+        if (t && t.kind === 'audio'){
+          if (st.volume != null) volSlider.value = st.volume;
+          if (st.musicMode != null) musicMode.checked = st.musicMode;
+          applyMusicMode();
+          playTrack(t, { startAt: st.position || 0, autoplay: false });
+          restored = true;
+        }
+      }
+    }
+  });
+
+  // ── Sync Listen (collaborative listening) ──────────────────────────
+  // Two roles: HOST broadcasts its playback; GUEST follows the host.
+  let syncRole = null;        // null | 'host' | 'guest'
+  let syncHostId = null;      // numeric id of the room we're in
+  let syncSocket = null;
+  let syncBroadcastTimer = null;
+  let lastSyncApplyAt = 0;
+
+  function getSyncSocket(){
+    if (syncSocket) return syncSocket;
+    if (typeof io === 'undefined') return null;
+    syncSocket = io({ transports: ['websocket','polling'] });
+    syncSocket.on('sync_state', applyRemoteSyncState);
+    syncSocket.on('sync_closed', () => stopSyncListen(true));
+    return syncSocket;
+  }
+
+  function currentTrackPayload(){
+    const t = tracks[currentIndex];
+    if (!t) return null;
+    return { id:t.id, title:t.title, kind:t.kind, source:t.source, playlist:t.playlist };
+  }
+
+  function broadcastHostState(){
+    if (syncRole !== 'host' || !syncSocket) return;
+    const pos = currentKind === 'youtube'
+      ? (yt && yt.getCurrentTime ? yt.getCurrentTime() : 0)
+      : (audio.currentTime || 0);
+    syncSocket.emit('sync_host', {
+      track: currentTrackPayload(),
+      playing: isPlaying,
+      position: pos
+    });
+  }
+
+  function applyRemoteSyncState(state){
+    if (syncRole !== 'guest' || !state || !state.track) return;
+    lastSyncApplyAt = Date.now();
+    const t = state.track;
+    const sameTrack = tracks[currentIndex] && tracks[currentIndex].id === t.id;
+    if (!sameTrack){
+      playTrack(t, { startAt: state.position || 0, autoplay: state.playing });
+    } else {
+      // Same track — just resync time + play state
+      const localPos = currentKind === 'youtube'
+        ? (yt && yt.getCurrentTime ? yt.getCurrentTime() : 0)
+        : (audio.currentTime || 0);
+      if (Math.abs(localPos - (state.position || 0)) > 1.5){
+        if (currentKind === 'youtube' && ytReady) yt.seekTo(state.position || 0, true);
+        else audio.currentTime = state.position || 0;
+      }
+      if (state.playing && !isPlaying) togglePlay();
+      else if (!state.playing && isPlaying) togglePlay();
+    }
+    updateSyncBanner('🟢 En écoute partagée avec ' + (state.host_username || 'l\'hôte'));
+  }
+
+  function startSyncHost(){
+    const sock = getSyncSocket();
+    if (!sock) { alert('Connexion temps réel indisponible.'); return; }
+    syncRole = 'host';
+    syncHostId = {{ current_student.id if current_student else 'null' }};
+    if (!syncHostId){ alert('Connecte-toi pour héberger.'); syncRole = null; return; }
+    broadcastHostState();
+    if (syncBroadcastTimer) clearInterval(syncBroadcastTimer);
+    syncBroadcastTimer = setInterval(broadcastHostState, 4000);
+    const link = location.origin + '/player?sync=' + syncHostId;
+    updateSyncBanner('🎧 Tu héberges. Partage ce lien : ' + link);
+    try { navigator.clipboard.writeText(link); } catch(e){}
+  }
+
+  function startSyncGuest(hostId){
+    const sock = getSyncSocket();
+    if (!sock) return;
+    syncRole = 'guest';
+    syncHostId = parseInt(hostId, 10);
+    sock.emit('sync_join', { host_id: syncHostId });
+    updateSyncBanner('⏳ Connexion à la session…');
+  }
+
+  function stopSyncListen(silent){
+    if (syncSocket && syncHostId){
+      syncSocket.emit('sync_leave', { host_id: syncRole === 'host' ? syncHostId : syncHostId });
+    }
+    if (syncBroadcastTimer){ clearInterval(syncBroadcastTimer); syncBroadcastTimer = null; }
+    syncRole = null; syncHostId = null;
+    updateSyncBanner(null);
+    if (!silent) {/* no-op */}
+  }
+
+  function updateSyncBanner(text){
+    let banner = document.getElementById('ssas-sync-banner');
+    if (!text){ if (banner) banner.remove(); return; }
+    if (!banner){
+      banner = document.createElement('div');
+      banner.id = 'ssas-sync-banner';
+      banner.className = 'sync-banner';
+      banner.innerHTML = '<span class="sync-dot"></span><span class="sync-msg"></span>'
+        + '<button type="button" class="btn btn-sm btn-ghost" id="ssas-sync-stop">Quitter</button>';
+      document.body.appendChild(banner);
+      banner.querySelector('#ssas-sync-stop').addEventListener('click', () => stopSyncListen());
+    }
+    banner.querySelector('.sync-msg').textContent = text;
+  }
+
+  // Re-broadcast immediately on user actions when hosting
+  ['click'].forEach(evt => {
+    playBtn.addEventListener(evt, () => setTimeout(broadcastHostState, 100));
+    nextBtn.addEventListener(evt, () => setTimeout(broadcastHostState, 200));
+    prevBtn.addEventListener(evt, () => setTimeout(broadcastHostState, 200));
+  });
+  progress.addEventListener('change', () => setTimeout(broadcastHostState, 100));
+
+  // Auto-join if URL has ?sync=<host_id>
+  try {
+    const u = new URL(location.href);
+    const sid = u.searchParams.get('sync');
+    if (sid) setTimeout(() => startSyncGuest(sid), 800);
+  } catch(e){}
+
+  // Public API used by the playlist page
+  window.SSASPlayer = {
+    playTrack, loadTracks,
+    startSyncHost, startSyncGuest, stopSyncListen
+  };
+})();
+</script>

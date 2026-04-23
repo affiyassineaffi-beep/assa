@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Partager une ressource{% endblock %}
+{% block content %}
+<div class="container narrow">
+  <header class="dm-page-head">
+    <h1>📤 Partager une ressource</h1>
+    <p class="muted">+20 XP à chaque partage utile pour la communauté.</p>
+  </header>
+
+  <section class="card glass" style="padding:18px">
+    <form method="post" enctype="multipart/form-data" class="form" id="res-form">
+      <label class="field">
+        <span>Titre</span>
+        <input type="text" name="title" required minlength="2" maxlength="200" placeholder="Résumé Bac Math 2024…"/>
+      </label>
+      <label class="field">
+        <span>Type</span>
+        <select name="kind" id="res-kind">
+          <option value="file">📄 Fichier (PDF, DOC, image…)</option>
+          <option value="text">📝 Résumé texte</option>
+          <option value="link">🔗 Lien externe</option>
+        </select>
+      </label>
+
+      <label class="field" data-kind="file">
+        <span>Fichier</span>
+        <input type="file" name="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.md,.png,.jpg,.jpeg,.webp,.zip"/>
+      </label>
+
+      <label class="field" data-kind="text" hidden>
+        <span>Contenu du résumé</span>
+        <textarea name="body" rows="10" placeholder="Tapez ou collez votre résumé ici…"></textarea>
+      </label>
+
+      <label class="field" data-kind="link" hidden>
+        <span>URL</span>
+        <input type="url" name="link_url" placeholder="https://…"/>
+      </label>
+
+      <label class="field">
+        <span>Matière (optionnel)</span>
+        <input type="text" name="subject" maxlength="120" placeholder="Mathématiques, Physique…"/>
+      </label>
+      <label class="field">
+        <span>Description (optionnel)</span>
+        <input type="text" name="description" maxlength="280"/>
+      </label>
+
+      <button type="submit" class="btn btn-primary">Publier</button>
+    </form>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const sel = document.getElementById('res-kind');
+function refresh(){
+  document.querySelectorAll('[data-kind]').forEach(el => {
+    el.hidden = (el.dataset.kind !== sel.value);
+  });
+}
+sel.addEventListener('change', refresh); refresh();
+</script>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ t('app_name') }}{% endblock %}
+{% block content %}
+<div class="container">
+
+  <!-- HERO -->
+  <section class="hero-card">
+    <p class="eyebrow">{{ t('hero_eyebrow') }}</p>
+    <h1>{{ t('hero_title') }}</h1>
+    <p class="lead">{{ t('hero_lead') }}</p>
+    <div class="actions">
+      {% if current_student %}
+        <a class="btn btn-primary" href="{{ url_for('dashboard') }}">{{ t('dashboard') }}</a>
+      {% else %}
+        <a class="btn btn-primary" href="{{ url_for('register') }}">{{ t('register') }}</a>
+        <a class="btn btn-secondary" href="{{ url_for('login') }}">{{ t('login') }}</a>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- PUBLIC GRADES TABLE -->
+  <section class="card">
+    <div class="section-header">
+      <h2>{{ t('published_grades') }}</h2>
+      <p class="muted">{{ t('djebel_highlight_note') }}</p>
+    </div>
+
+    {% if public_grades %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>{{ t('col_student') }}</th>
+              <th>{{ t('col_school') }}</th>
+              <th>{{ t('col_level') }}</th>
+              <th>{{ t('col_subject') }}</th>
+              <th>{{ t('col_note') }}</th>
+              <th>{{ t('col_coeff') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for grade, st in public_grades %}
+              <tr class="{% if is_djebel_school(st.school_name) %}djebel-row{% endif %}">
+                <td>
+                  <div class="student-cell">
+                    <span class="avatar" style="background:{{ school_badge_color(st.school_name) }}">
+                      {{ (st.username or '?')[0]|upper }}
+                    </span>
+                    <div>
+                      <strong>{{ st.username }}</strong>
+                      {% if is_djebel_school(st.school_name) %}
+                        <span class="tag tag-djebel">{{ t('djebel_badge') }}</span>
+                      {% endif %}
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span class="school-chip" style="background:{{ school_badge_color(st.school_name) }}20;border-color:{{ school_badge_color(st.school_name) }}40;color:{{ school_badge_color(st.school_name) }}">
+                    {{ st.school_name or t('school_not_set') }}
+                  </span>
+                </td>
+                <td>{{ level_display(st.educational_level or '') }}</td>
+                <td>{{ grade.subject }}</td>
+                <td><strong class="note-val {% if grade.note >= 15 %}note-high{% elif grade.note < 10 %}note-low{% else %}note-mid{% endif %}">{{ '%g'|format(grade.note) }}/20</strong></td>
+                <td class="muted">×{{ '%g'|format(grade.coefficient) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty-state">{{ t('no_public_grades') }}</p>
+    {% endif %}
+  </section>
+
+</div>
+{% endblock %}

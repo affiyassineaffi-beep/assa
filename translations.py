@@ -1,0 +1,220 @@
+"""French / Arabic translations for the platform."""
+from __future__ import annotations
+
+T: dict[str, dict[str, str]] = {
+    # ── General ──────────────────────────────────────────────
+    "app_name": {"fr": "Plateforme Académique", "ar": "المنصة الأكاديمية", "en": "Academic Platform"},
+    "language_toggle": {"fr": "العربية", "ar": "Français", "en": "FR / AR / EN"},
+    "login": {"fr": "Connexion", "ar": "تسجيل الدخول", "en": "Login"},
+    "logout": {"fr": "Déconnexion", "ar": "خروج", "en": "Logout"},
+    "register": {"fr": "Créer un compte", "ar": "إنشاء حساب", "en": "Sign up"},
+    "dashboard": {"fr": "Tableau de bord", "ar": "لوحة التحكم", "en": "Dashboard"},
+    "profile": {"fr": "Profil", "ar": "الملف الشخصي", "en": "Profile"},
+    "messages": {"fr": "Messages", "ar": "الرسائل", "en": "Messages"},
+    "save": {"fr": "Enregistrer", "ar": "حفظ", "en": "Save"},
+    "delete": {"fr": "Supprimer", "ar": "حذف", "en": "Delete"},
+    "cancel": {"fr": "Annuler", "ar": "إلغاء", "en": "Cancel"},
+    "send": {"fr": "Envoyer", "ar": "إرسال", "en": "Send"},
+    "search": {"fr": "Rechercher…", "ar": "بحث…", "en": "Search…"},
+    "yes": {"fr": "Oui", "ar": "نعم", "en": "Yes"},
+    "no": {"fr": "Non", "ar": "لا", "en": "No"},
+    # ── Index ────────────────────────────────────────────────
+    "hero_eyebrow": {"fr": "Journal de notes étudiant", "ar": "سجل درجات الطالب", "en": "Journal de notes étudiant"},
+    "hero_title": {"fr": "Suivez vos notes et choisissez ce que vous partagez.", "ar": "تابع درجاتك وقرر ما تشاركه.", "en": "Suivez vos notes et choisissez ce que vous partagez."},
+    "hero_lead": {"fr": "Connectez-vous avec Google ou email, complétez votre profil scolaire, ajoutez des notes par matière et publiez ce que vous souhaitez.", "ar": "سجّل الدخول بـ Google أو البريد الإلكتروني، أكمل ملفك المدرسي، أضف الدرجات ونشر ما تريده.", "en": "Connectez-vous avec Google ou email, complétez votre profil scolaire, ajoutez des notes par matière et publiez ce que vous souhaitez."},
+    "published_grades": {"fr": "Notes publiées", "ar": "الدرجات المنشورة", "en": "Notes publiées"},
+    "published_subtitle": {"fr": "Seules les notes que les étudiants ont choisi de publier apparaissent ici.", "ar": "تظهر هنا فقط الدرجات التي اختار الطلاب نشرها.", "en": "Seules les notes que les étudiants ont choisi de publier apparaissent ici."},
+    "djebel_highlight_note": {"fr": "Les élèves de Jebel Jeloud sont mis en évidence.", "ar": "يتم تمييز طلاب جبل الجلود.", "en": "Les élèves de Jebel Jeloud sont mis en évidence."},
+    "no_public_grades": {"fr": "Aucune note publiée pour l'instant.", "ar": "لا توجد درجات منشورة حتى الآن.", "en": "Aucune note publiée pour l'instant."},
+    "col_student": {"fr": "Étudiant", "ar": "الطالب", "en": "Étudiant"},
+    "col_school": {"fr": "École", "ar": "المدرسة", "en": "École"},
+    "col_level": {"fr": "Cycle", "ar": "المرحلة", "en": "Cycle"},
+    "col_subject": {"fr": "Matière", "ar": "المادة", "en": "Matière"},
+    "col_note": {"fr": "Note", "ar": "الدرجة", "en": "Note"},
+    "col_coeff": {"fr": "Coeff", "ar": "المعامل", "en": "Coeff"},
+    # ── Auth ─────────────────────────────────────────────────
+    "login_title": {"fr": "Connexion", "ar": "تسجيل الدخول", "en": "Connexion"},
+    "login_lead": {"fr": "Accédez à votre tableau de bord privé.", "ar": "الوصول إلى لوحة التحكم الخاصة بك.", "en": "Accédez à votre tableau de bord privé."},
+    "continue_google": {"fr": "Continuer avec Google", "ar": "المتابعة مع Google", "en": "Continuer avec Google"},
+    "or_use_email": {"fr": "ou utilisez votre email", "ar": "أو استخدم بريدك الإلكتروني", "en": "ou utilisez votre email"},
+    "email_label": {"fr": "Email", "ar": "البريد الإلكتروني", "en": "Email"},
+    "password_label": {"fr": "Mot de passe", "ar": "كلمة المرور", "en": "Password"},
+    "no_account": {"fr": "Pas de compte ? ", "ar": "ليس لديك حساب؟ ", "en": "No account? "},
+    "create_one": {"fr": "Créer un compte", "ar": "أنشئ حساباً", "en": "Create one"},
+    "register_title": {"fr": "Créer un compte étudiant", "ar": "إنشاء حساب طالب", "en": "Créer un compte étudiant"},
+    "register_lead": {"fr": "Inscrivez-vous avec Google ou créez un compte email.", "ar": "سجّل بـ Google أو أنشئ حساباً بالبريد الإلكتروني.", "en": "Inscrivez-vous avec Google ou créez un compte email."},
+    "signup_google": {"fr": "S'inscrire avec Google", "ar": "التسجيل مع Google", "en": "S'inscrire avec Google"},
+    "or_create_email": {"fr": "ou créer avec email", "ar": "أو التسجيل بالبريد", "en": "ou créer avec email"},
+    "full_name": {"fr": "Nom complet", "ar": "الاسم الكامل", "en": "Full name"},
+    "new_password": {"fr": "Nouveau mot de passe", "ar": "كلمة مرور جديدة", "en": "New password"},
+    "phone_label": {"fr": "Téléphone (optionnel)", "ar": "الهاتف (اختياري)", "en": "Phone (optional)"},
+    "already_account": {"fr": "Déjà inscrit ? ", "ar": "لديك حساب؟ ", "en": "Already registered? "},
+    "google_not_configured": {"fr": "La connexion Google nécessite des identifiants OAuth.", "ar": "تسجيل الدخول بـ Google يحتاج إلى بيانات OAuth.", "en": "La connexion Google nécessite des identifiants OAuth."},
+    # ── Profile ──────────────────────────────────────────────
+    "profile_title": {"fr": "Profil étudiant", "ar": "الملف الشخصي للطالب", "en": "Profil étudiant"},
+    "profile_lead": {"fr": "Choisissez votre cycle, région et établissement.", "ar": "اختر مرحلتك الدراسية وولايتك ومؤسستك.", "en": "Choisissez votre cycle, région et établissement."},
+    "edu_level": {"fr": "Cycle d'enseignement", "ar": "المرحلة الدراسية", "en": "Cycle d'enseignement"},
+    "select_level": {"fr": "Sélectionner le cycle", "ar": "اختر المرحلة", "en": "Sélectionner le cycle"},
+    "region_city": {"fr": "Gouvernorat / Ville", "ar": "الولاية / المدينة", "en": "Gouvernorat / Ville"},
+    "select_region": {"fr": "Sélectionner la région", "ar": "اختر الولاية", "en": "Sélectionner la région"},
+    "school_name": {"fr": "Établissement scolaire", "ar": "المؤسسة التعليمية", "en": "Établissement scolaire"},
+    "select_school": {"fr": "Rechercher un établissement…", "ar": "ابحث عن مؤسسة…", "en": "Rechercher un établissement…"},
+    "class_section": {"fr": "Classe / Section", "ar": "القسم / الشعبة", "en": "Classe / Section"},
+    "select_class": {"fr": "Sélectionner la classe", "ar": "اختر القسم", "en": "Sélectionner la classe"},
+    "section_label": {"fr": "Section (Lycée)", "ar": "الشعبة (ثانوية)", "en": "Section (Lycée)"},
+    "select_section": {"fr": "Sélectionner la section", "ar": "اختر الشعبة", "en": "Sélectionner la section"},
+    "profile_saved": {"fr": "Profil mis à jour.", "ar": "تم تحديث الملف الشخصي.", "en": "Profil mis à jour."},
+    # ── Dashboard ────────────────────────────────────────────
+    "dashboard_eyebrow": {"fr": "Tableau de bord", "ar": "لوحة التحكم", "en": "Tableau de bord"},
+    "hello": {"fr": "Bonjour", "ar": "مرحباً", "en": "Bonjour"},
+    "dashboard_lead": {"fr": "Ajoutez des notes depuis votre liste de matières et choisissez ce que vous publiez.", "ar": "أضف درجاتك من قائمة موادك واختر ما تنشره.", "en": "Ajoutez des notes depuis votre liste de matières et choisissez ce que vous publiez."},
+    "your_profile": {"fr": "Votre profil", "ar": "ملفك الشخصي", "en": "Votre profil"},
+    "update_profile": {"fr": "Modifier le profil", "ar": "تعديل الملف", "en": "Modifier le profil"},
+    "add_grade": {"fr": "Ajouter une note", "ar": "إضافة درجة", "en": "Ajouter une note"},
+    "select_subject": {"fr": "Sélectionner la matière", "ar": "اختر المادة", "en": "Sélectionner la matière"},
+    "note_placeholder": {"fr": "Note /20", "ar": "الدرجة /20", "en": "Note /20"},
+    "optional_subject": {"fr": "Matière optionnelle ?", "ar": "مادة اختيارية؟", "en": "Matière optionnelle ?"},
+    "publish_grade": {"fr": "Publier cette note", "ar": "نشر هذه الدرجة", "en": "Publier cette note"},
+    "your_grades": {"fr": "Vos notes", "ar": "درجاتك", "en": "Vos notes"},
+    "private_note": {"fr": "Les notes privées ne sont visibles que par vous.", "ar": "الدرجات الخاصة مرئية لك فقط.", "en": "Les notes privées ne sont visibles que par vous."},
+    "no_grades_yet": {"fr": "Vous n'avez pas encore ajouté de notes.", "ar": "لم تضف أي درجات بعد.", "en": "Vous n'avez pas encore ajouté de notes."},
+    "weighted_avg": {"fr": "Moyenne pondérée", "ar": "المعدل الموزون", "en": "Moyenne pondérée"},
+    "bonus_pts": {"fr": "Points bonus", "ar": "نقاط إضافية", "en": "Points bonus"},
+    "final_avg": {"fr": "Moyenne finale", "ar": "المعدل النهائي", "en": "Moyenne finale"},
+    "publish_toggle": {"fr": "Publier", "ar": "نشر", "en": "Publier"},
+    "is_public": {"fr": "Publique", "ar": "منشور", "en": "Publique"},
+    "is_private": {"fr": "Privée", "ar": "خاص", "en": "Privée"},
+    # ── AI Mentor ────────────────────────────────────────────
+    "mentor_title": {"fr": "Conseiller IA", "ar": "المستشار الذكي", "en": "Conseiller IA"},
+    "mentor_lead": {"fr": "Analyse automatique de vos performances et conseils personnalisés.", "ar": "تحليل تلقائي لأدائك ونصائح مخصصة لك.", "en": "Analyse automatique de vos performances et conseils personnalisés."},
+    "coeff_label": {"fr": "Coeff.", "ar": "المعامل", "en": "Coeff."},
+    "optional_label": {"fr": "Option", "ar": "اختياري", "en": "Option"},
+    # ── Messages ─────────────────────────────────────────────
+    "messages_title": {"fr": "Messages", "ar": "الرسائل", "en": "Messages"},
+    "new_message": {"fr": "Nouveau message", "ar": "رسالة جديدة", "en": "Nouveau message"},
+    "to_label": {"fr": "À", "ar": "إلى", "en": "À"},
+    "message_body": {"fr": "Message", "ar": "نص الرسالة", "en": "Message"},
+    "no_messages": {"fr": "Aucun message pour l'instant.", "ar": "لا رسائل حتى الآن.", "en": "Aucun message pour l'instant."},
+    "inbox": {"fr": "Boîte de réception", "ar": "صندوق الوارد", "en": "Boîte de réception"},
+    "sent": {"fr": "Envoyés", "ar": "المُرسلة", "en": "Envoyés"},
+    "reply": {"fr": "Répondre", "ar": "رد", "en": "Répondre"},
+    "conversation": {"fr": "Conversation", "ar": "المحادثة", "en": "Conversation"},
+    # ── School badges ─────────────────────────────────────────
+    "djebel_badge": {"fr": "Élève de Jebel Jeloud", "ar": "طالب جبل الجلود", "en": "Élève de Jebel Jeloud"},
+    "school_not_set": {"fr": "École non définie", "ar": "المدرسة غير محددة", "en": "École non définie"},
+    "level_not_set": {"fr": "Cycle non défini", "ar": "المرحلة غير محددة", "en": "Cycle non défini"},
+    # ── Levels (display names) ───────────────────────────────
+    "level_Primary": {"fr": "Primaire", "ar": "ابتدائي", "en": "Primaire"},
+    "level_Preparatory": {"fr": "Collège", "ar": "إعدادي", "en": "Collège"},
+    "level_Secondary": {"fr": "Lycée", "ar": "ثانوي", "en": "Lycée"},
+    "level_University": {"fr": "Université", "ar": "جامعة", "en": "Université"},
+    "level_Basic": {"fr": "Enseignement de base", "ar": "تعليم أساسي", "en": "Enseignement de base"},
+    # ── Errors ───────────────────────────────────────────────
+    "err_username_short": {"fr": "Le nom doit comporter au moins 3 caractères.", "ar": "يجب أن يحتوي الاسم على 3 أحرف على الأقل.", "en": "Le nom doit comporter au moins 3 caractères."},
+    "err_invalid_email": {"fr": "Veuillez entrer une adresse email valide.", "ar": "يرجى إدخال بريد إلكتروني صحيح.", "en": "Veuillez entrer une adresse email valide."},
+    "err_password_short": {"fr": "Le mot de passe doit comporter au moins 4 caractères.", "ar": "يجب أن تحتوي كلمة المرور على 4 أحرف على الأقل.", "en": "Le mot de passe doit comporter au moins 4 caractères."},
+    "err_email_taken": {"fr": "Ce nom ou email est déjà utilisé.", "ar": "هذا الاسم أو البريد مستخدم بالفعل.", "en": "Ce nom ou email est déjà utilisé."},
+    "err_invalid_level": {"fr": "Veuillez choisir un cycle valide.", "ar": "يرجى اختيار مرحلة دراسية صحيحة.", "en": "Veuillez choisir un cycle valide."},
+    "err_invalid_region": {"fr": "Veuillez choisir une région valide.", "ar": "يرجى اختيار ولاية صحيحة.", "en": "Veuillez choisir une région valide."},
+    "err_invalid_school": {"fr": "Veuillez choisir un établissement valide.", "ar": "يرجى اختيار مؤسسة تعليمية صحيحة.", "en": "Veuillez choisir un établissement valide."},
+    "err_invalid_class": {"fr": "Veuillez choisir une classe valide.", "ar": "يرجى اختيار القسم الصحيح.", "en": "Veuillez choisir une classe valide."},
+    "err_invalid_subject": {"fr": "Veuillez choisir une matière de votre cycle.", "ar": "يرجى اختيار مادة من مرحلتك الدراسية.", "en": "Veuillez choisir une matière de votre cycle."},
+    "err_invalid_note": {"fr": "La note doit être un nombre entre 0 et 20.", "ar": "يجب أن تكون الدرجة رقماً بين 0 و20.", "en": "La note doit être un nombre entre 0 et 20."},
+    "err_login_failed": {"fr": "Email ou mot de passe incorrect.", "ar": "البريد الإلكتروني أو كلمة المرور غير صحيحة.", "en": "Email ou mot de passe incorrect."},
+    "err_google_no_email": {"fr": "Google n'a pas vérifié cette adresse email.", "ar": "لم تتحقق Google من هذا البريد الإلكتروني.", "en": "Google n'a pas vérifié cette adresse email."},
+    "success_register": {"fr": "Compte créé avec succès.", "ar": "تم إنشاء الحساب بنجاح.", "en": "Compte créé avec succès."},
+    "success_welcome": {"fr": "Bienvenue.", "ar": "مرحباً بك.", "en": "Bienvenue."},
+    "success_google": {"fr": "Connecté avec Google.", "ar": "تم تسجيل الدخول بـ Google.", "en": "Connecté avec Google."},
+    "success_logout": {"fr": "Vous avez été déconnecté.", "ar": "تم تسجيل خروجك.", "en": "Vous avez été déconnecté."},
+    "success_grade": {"fr": "Note ajoutée.", "ar": "تمت إضافة الدرجة.", "en": "Note ajoutée."},
+    "success_profile": {"fr": "Profil mis à jour.", "ar": "تم تحديث الملف الشخصي.", "en": "Profil mis à jour."},
+    "success_visibility": {"fr": "Visibilité mise à jour.", "ar": "تم تحديث الظهور.", "en": "Visibilité mise à jour."},
+    "success_deleted": {"fr": "Note supprimée.", "ar": "تم حذف الدرجة.", "en": "Note supprimée."},
+    "success_message_sent": {"fr": "Message envoyé.", "ar": "تم إرسال الرسالة.", "en": "Message envoyé."},
+    "complete_profile_prompt": {"fr": "Complétez votre profil pour continuer.", "ar": "أكمل ملفك الشخصي للمتابعة.", "en": "Complétez votre profil pour continuer."},
+    "google_needs_config": {"fr": "La connexion Google nécessite GOOGLE_OAUTH_CLIENT_ID et GOOGLE_OAUTH_CLIENT_SECRET.", "ar": "تسجيل الدخول بـ Google يحتاج GOOGLE_OAUTH_CLIENT_ID و GOOGLE_OAUTH_CLIENT_SECRET.", "en": "La connexion Google nécessite GOOGLE_OAUTH_CLIENT_ID et GOOGLE_OAUTH_CLIENT_SECRET."},
+    # ── New (Apr 2026) ────────────────────────────
+    "settings": {"fr": "Paramètres", "ar": "الإعدادات", "en": "Settings"},
+    "theme": {"fr": "Thème", "ar": "المظهر", "en": "Theme"},
+    "language": {"fr": "Langue", "ar": "اللغة", "en": "Language"},
+    "edit_profile": {"fr": "Modifier le profil", "ar": "تعديل الملف", "en": "Edit profile"},
+    "remember_me": {"fr": "Rester connecté sur cet appareil", "ar": "ابقني متصلاً", "en": "Remember me"},
+    "new_group": {"fr": "Nouveau groupe", "ar": "مجموعة جديدة", "en": "New group"},
+    "create_group": {"fr": "Créer le groupe", "ar": "إنشاء المجموعة", "en": "Create group"},
+    "group_name": {"fr": "Nom du groupe", "ar": "اسم المجموعة", "en": "Group name"},
+    "members": {"fr": "Membres", "ar": "الأعضاء", "en": "Members"},
+    "call_audio": {"fr": "Appel audio", "ar": "مكالمة صوتية", "en": "Audio call"},
+    "call_video": {"fr": "Appel vidéo", "ar": "مكالمة فيديو", "en": "Video call"},
+    "discover": {"fr": "Découvrir", "ar": "اكتشف", "en": "Discover"},
+    "ai_assistant": {"fr": "Assistant IA", "ar": "المساعد الذكي", "en": "AI Assistant"},
+    "theme_dark": {"fr": "Sombre", "ar": "داكن", "en": "Dark"},
+    "theme_light": {"fr": "Clair", "ar": "فاتح", "en": "Light"},
+    "theme_system": {"fr": "Système", "ar": "النظام", "en": "System"},
+}
+
+
+def tr(key: str, lang: str = "fr") -> str:
+    """Return translated string for ``key`` in ``lang`` with multi-step fallback.
+
+    For any language not present in the dictionary, we fall back through:
+    requested lang  →  English  →  French  →  raw key.
+    This lets the UI scale to dozens of locales (set in LANGUAGES below)
+    without forcing a full hand-translation up front.
+    """
+    entry = T.get(key, {})
+    return entry.get(lang) or entry.get("en") or entry.get("fr") or key
+
+
+# ── Universal language catalog ──────────────────────────────────────────
+# `code -> (English name, native name, RTL?)`
+# These are the languages the user can pick from in Settings. Any language
+# without a full translation table falls back to English/French via tr().
+LANGUAGES: dict[str, tuple[str, str, bool]] = {
+    "fr":    ("French",     "Français",     False),
+    "ar":    ("Arabic",     "العربية",       True),
+    "en":    ("English",    "English",      False),
+    "es":    ("Spanish",    "Español",      False),
+    "pt":    ("Portuguese", "Português",    False),
+    "de":    ("German",     "Deutsch",      False),
+    "it":    ("Italian",    "Italiano",     False),
+    "nl":    ("Dutch",      "Nederlands",   False),
+    "pl":    ("Polish",     "Polski",       False),
+    "ro":    ("Romanian",   "Română",       False),
+    "ru":    ("Russian",    "Русский",      False),
+    "uk":    ("Ukrainian",  "Українська",   False),
+    "tr":    ("Turkish",    "Türkçe",       False),
+    "el":    ("Greek",      "Ελληνικά",     False),
+    "sv":    ("Swedish",    "Svenska",      False),
+    "no":    ("Norwegian",  "Norsk",        False),
+    "da":    ("Danish",     "Dansk",        False),
+    "fi":    ("Finnish",    "Suomi",        False),
+    "cs":    ("Czech",      "Čeština",      False),
+    "hu":    ("Hungarian",  "Magyar",       False),
+    "he":    ("Hebrew",     "עברית",         True),
+    "fa":    ("Persian",    "فارسی",         True),
+    "ur":    ("Urdu",       "اردو",          True),
+    "hi":    ("Hindi",      "हिन्दी",          False),
+    "bn":    ("Bengali",    "বাংলা",          False),
+    "ta":    ("Tamil",      "தமிழ்",         False),
+    "th":    ("Thai",       "ไทย",           False),
+    "vi":    ("Vietnamese", "Tiếng Việt",   False),
+    "id":    ("Indonesian", "Bahasa Indonesia", False),
+    "ms":    ("Malay",      "Bahasa Melayu", False),
+    "tl":    ("Filipino",   "Filipino",     False),
+    "zh":    ("Chinese",    "中文",          False),
+    "ja":    ("Japanese",   "日本語",        False),
+    "ko":    ("Korean",     "한국어",         False),
+    "sw":    ("Swahili",    "Kiswahili",    False),
+    "am":    ("Amharic",    "አማርኛ",          False),
+    "ha":    ("Hausa",      "Hausa",        False),
+    "yo":    ("Yoruba",     "Yorùbá",       False),
+    "zu":    ("Zulu",       "isiZulu",      False),
+    "af":    ("Afrikaans",  "Afrikaans",    False),
+}
+
+RTL_LANGS = {code for code, (_, _, rtl) in LANGUAGES.items() if rtl}
+
+
+def language_label(code: str) -> str:
+    info = LANGUAGES.get(code)
+    return info[1] if info else code

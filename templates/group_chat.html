@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}{{ group.name }} · Groupe{% endblock %}
+{% block content %}
+<div class="chat-page" data-group-id="{{ group.id }}" data-me-id="{{ student.id }}">
+
+  <header class="chat-header glass">
+    <a href="{{ url_for('messages') }}" class="chat-back" aria-label="Retour">←</a>
+    <div class="chat-avatar" style="background:linear-gradient(135deg,#38bdf8,#7c5cff)">👥</div>
+    <div class="chat-header-info">
+      <strong class="chat-header-name">{{ group.name }}</strong>
+      <span class="chat-header-sub muted small">
+        {{ members|length }} membre(s)
+        {% if group.description %} · {{ group.description }}{% endif %}
+      </span>
+    </div>
+    <form method="post" action="{{ url_for('group_leave', gid=group.id) }}" style="margin-left:auto"
+          onsubmit="return confirm('Quitter le groupe ?')">
+      <button type="submit" class="chat-back" title="Quitter">⎋</button>
+    </form>
+  </header>
+
+  <div class="chat-stream" id="chat-stream">
+    {% for m in thread %}
+      {% set mine = (m.sender_id == student.id) %}
+      <div class="chat-bubble {{ 'mine' if mine else 'theirs' }}" data-msg-id="{{ m.id }}">
+        {% if not mine %}
+          <div class="bubble-author muted small">{{ m.sender.username }}</div>
+        {% endif %}
+        <div class="bubble-body">{{ m.body }}</div>
+        <div class="bubble-meta">
+          <span class="bubble-time">{{ m.created_at.strftime('%H:%M') }}</span>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <form class="chat-composer glass" id="chat-form" autocomplete="off">
+    <input type="text" id="chat-input" placeholder="Message au groupe…" maxlength="2000"/>
+    <button type="submit" class="chat-send" aria-label="Envoyer">➤</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+(function(){
+  const root    = document.querySelector('.chat-page');
+  const groupId = parseInt(root.dataset.groupId, 10);
+  const meId    = parseInt(root.dataset.meId, 10);
+  const stream  = document.getElementById('chat-stream');
+  const form    = document.getElementById('chat-form');
+  const input   = document.getElementById('chat-input');
+
+  const socket = io({ transports: ['websocket','polling'] });
+  function scrollDown(){ stream.scrollTop = stream.scrollHeight; }
+  scrollDown();
+
+  socket.on('connected', () => socket.emit('join_group', { group_id: groupId }));
+
+  function bubble(msg, mine){
+    const div = document.createElement('div');
+    div.className = 'chat-bubble ' + (mine ? 'mine' : 'theirs');
+    if (msg.id) div.dataset.msgId = msg.id;
+    const time = new Date(msg.created_at || Date.now())
+      .toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    let inner = '';
+    if (!mine && msg.sender_username){
+      inner += `<div class="bubble-author muted small"></div>`;
+    }
+    inner += `<div class="bubble-body"></div><div class="bubble-meta"><span class="bubble-time">${time}</span></div>`;
+    div.innerHTML = inner;
+    if (!mine && msg.sender_username){
+      div.querySelector('.bubble-author').textContent = msg.sender_username;
+    }
+    div.querySelector('.bubble-body').textContent = msg.body;
+    return div;
+  }
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const body = input.value.trim();
+    if (!body) return;
+    socket.emit('send_group_message', { group_id: groupId, body });
+    input.value = '';
+  });
+
+  socket.on('new_group_message', (msg) => {
+    if (msg.group_id !== groupId) return;
+    const mine = (msg.sender_id === meId);
+    stream.appendChild(bubble(msg, mine));
+    scrollDown();
+  });
+})();
+</script>
+{% endblock %}

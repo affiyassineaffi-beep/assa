@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Vérifie ton email{% endblock %}
+{% block content %}
+<div class="container narrow">
+  <div class="auth-card">
+    <p class="eyebrow">{{ t('app_name') }}</p>
+    <h1 class="auth-title">📧 Vérifie ton email</h1>
+    <p class="auth-lead">
+      Un lien d'activation a été envoyé à
+      <strong>{{ email or 'ton adresse email' }}</strong>.
+      Clique dessus pour activer ton compte.
+    </p>
+
+    <div class="verify-hint">
+      Astuce dev : pendant le développement, le lien est imprimé dans la console
+      du serveur (workflow logs).
+    </div>
+
+    <form method="post" action="{{ url_for('verify_email_resend') }}" class="form" style="margin-top:18px">
+      <input type="hidden" name="email" value="{{ email }}"/>
+      <button type="submit" class="btn btn-secondary btn-full">Renvoyer le lien</button>
+    </form>
+
+    <p class="auth-footer">
+      <a href="{{ url_for('login') }}">Retour à la connexion</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}{{ t('new_group') }}{% endblock %}
+{% block content %}
+<div class="container narrow">
+  <header class="dm-page-head">
+    <h1>👥 {{ t('new_group') }}</h1>
+    <p class="muted">Créez un groupe pour votre classe ou votre spécialité.</p>
+  </header>
+
+  <section class="card glass" style="padding:18px">
+    <form method="post" class="form">
+      <label class="field">
+        <span>{{ t('group_name') }}</span>
+        <input type="text" name="name" required minlength="2" maxlength="120"
+               placeholder="Bac Math 2026 — Section A"/>
+      </label>
+      <label class="field">
+        <span>Description (optionnel)</span>
+        <input type="text" name="description" maxlength="280" placeholder="Notre groupe d'études…"/>
+      </label>
+      <label class="field">
+        <span>{{ t('members') }}</span>
+        <select name="members" id="members-select" multiple>
+          {% for s in all_students %}
+            <option value="{{ s.id }}">
+              {{ s.username }}{% if s.class_section %} — {{ s.class_section }}{% endif %}
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+      <button type="submit" class="btn btn-primary">{{ t('create_group') }}</button>
+    </form>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+new TomSelect('#members-select', { plugins: ['remove_button'], maxItems: null });
+</script>
+{% endblock %}

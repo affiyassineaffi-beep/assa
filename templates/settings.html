@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}{{ t('settings') }} · {{ t('app_name') }}{% endblock %}
+{% block content %}
+<div class="container narrow">
+  <header class="dm-page-head">
+    <h1>⚙️ {{ t('settings') }}</h1>
+    <p class="muted">Personnalisez votre expérience SSAS.</p>
+  </header>
+
+  <!-- Appearance -->
+  <section class="card glass" style="padding:18px;margin-bottom:16px">
+    <h2 style="margin-top:0">🎨 Apparence & langue</h2>
+    <form method="post" class="form">
+      <input type="hidden" name="action" value="appearance"/>
+
+      <label class="field">
+        <span>{{ t('theme') }}</span>
+        <div class="theme-pick">
+          {% for opt in supported_themes %}
+            <label class="theme-pick-item {% if student.theme == opt %}active{% endif %}">
+              <input type="radio" name="theme" value="{{ opt }}" {% if student.theme == opt %}checked{% endif %}/>
+              <span>
+                {% if opt == 'dark' %}🌙 {{ t('theme_dark') }}
+                {% elif opt == 'light' %}☀️ {{ t('theme_light') }}
+                {% else %}🖥 {{ t('theme_system') }}
+                {% endif %}
+              </span>
+            </label>
+          {% endfor %}
+        </div>
+      </label>
+
+      <label class="field">
+        <span>{{ t('language') }}</span>
+        <select name="language">
+          <option value="fr" {% if student.language == 'fr' %}selected{% endif %}>🇫🇷 Français</option>
+          <option value="ar" {% if student.language == 'ar' %}selected{% endif %}>🇹🇳 العربية</option>
+          <option value="en" {% if student.language == 'en' %}selected{% endif %}>🇬🇧 English</option>
+        </select>
+      </label>
+
+      <button type="submit" class="btn btn-primary">{{ t('save') }}</button>
+    </form>
+  </section>
+
+  <!-- Avatar -->
+  <section class="card glass" style="padding:18px;margin-bottom:16px">
+    <h2 style="margin-top:0">📸 Photo de profil</h2>
+    <div class="avatar-edit">
+      {% if student.avatar_url %}
+        <img id="avatar-preview" src="{{ student.avatar_url }}" alt=""/>
+      {% else %}
+        <img id="avatar-preview" src="{{ url_for('static', filename='icon.svg') }}" alt=""/>
+      {% endif %}
+      <div style="flex:1">
+        <label class="btn btn-primary" for="avatar-input" style="cursor:pointer">📷 Changer</label>
+        <input id="avatar-input" type="file" accept=".png,.jpg,.jpeg,.webp,.gif" hidden/>
+        <p class="muted small" style="margin:8px 0 0">JPG, PNG, WebP — 5 Mo max.</p>
+      </div>
+    </div>
+    <script>
+    document.getElementById('avatar-input').addEventListener('change', async (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      const fd = new FormData(); fd.append('avatar', f);
+      const r = await fetch('/api/avatar', { method: 'POST', body: fd });
+      const d = await r.json();
+      if (d.avatar_url){
+        document.getElementById('avatar-preview').src = d.avatar_url + '?t=' + Date.now();
+      } else {
+        alert('Erreur : ' + (d.error || 'envoi impossible'));
+      }
+    });
+    </script>
+  </section>
+
+  <!-- Gamification overview -->
+  <section class="card glass" style="padding:18px;margin-bottom:16px">
+    <h2 style="margin-top:0">🏆 Mes XP</h2>
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <div class="conv-avatar" style="background:var(--grad);width:56px;height:56px;font-size:22px">
+        {{ student.badge_icon or '🌱' }}
+      </div>
+      <div style="flex:1;min-width:200px">
+        <strong>Niveau <span data-xp-level>{{ student.level }}</span> ·
+                <span data-xp-points>{{ student.points }}</span> XP</strong>
+        <div class="xp-bar"><span data-xp-bar
+             style="width: {{ ((student.experience / (100 + (student.level-1)*50)) * 100)|round(1) }}%"></span></div>
+      </div>
+      <a href="{{ url_for('leaderboard') }}" class="btn btn-sm">🏆 Classement</a>
+    </div>
+  </section>
+
+  <!-- Profile -->
+  <section class="card glass" style="padding:18px;margin-bottom:16px">
+    <h2 style="margin-top:0">👤 {{ t('edit_profile') }}</h2>
+    <form method="post" class="form">
+      <input type="hidden" name="action" value="profile"/>
+
+      <label class="field">
+        <span>{{ t('full_name') }}</span>
+        <input type="text" name="username" value="{{ student.username }}" minlength="3" maxlength="120"/>
+      </label>
+
+      <label class="field">
+        <span>
+          {{ t('phone_label') }}
+          {% if student.phone_verified %}
+            <span style="color:#10b981;font-weight:700">✓ vérifié</span>
+          {% else %}
+            <a href="{{ url_for('verify_phone') }}" style="color:#7c5cff;font-weight:700">Vérifier par SMS →</a>
+          {% endif %}
+        </span>
+        <input type="tel" name="phone" value="{{ student.phone or '' }}"/>
+      </label>
+
+      <label class="field">
+        <span>{{ t('edu_level') }}</span>
+        <select name="educational_level">
+          {% for lvl in educational_levels %}
+            <option value="{{ lvl }}" {% if student.educational_level == lvl %}selected{% endif %}>{{ level_display(lvl) }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label class="field">
+        <span>{{ t('class_section') }}</span>
+        <select name="class_section">
+          {% for c in class_sections %}
+            <option value="{{ c }}" {% if student.class_section == c %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label class="field">
+        <span>{{ t('school_name') }}</span>
+        <input type="text" name="school_name" value="{{ student.school_name or '' }}" list="school-list"/>
+        <datalist id="school-list">
+          {% for s in all_schools %}<option value="{{ s }}"></option>{% endfor %}
+        </datalist>
+      </label>
+
+      <label class="field">
+        <span>{{ t('region_city') }}</span>
+        <select name="region_city">
+          {% for r in regions %}
+            <option value="{{ r }}" {% if student.region_city == r %}selected{% endif %}>{{ r }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <button type="submit" class="btn btn-primary">{{ t('save') }}</button>
+    </form>
+  </section>
+
+  <!-- PWA Install + Logout -->
+  <section class="card glass" style="padding:18px;margin-bottom:16px">
+    <h2 style="margin-top:0">📱 Application</h2>
+    <p class="muted small">Installez SSAS sur votre écran d'accueil pour une expérience native.</p>
+    <button type="button" id="pwa-install-btn" class="btn btn-primary" hidden>📲 Installer SSAS</button>
+    <p class="muted small" id="pwa-install-hint" style="margin-top:8px">
+      Si le bouton n'apparaît pas : sur Chrome mobile, ouvrez le menu (⋮) → « Ajouter à l'écran d'accueil ».
+      Sur iPhone Safari : bouton Partager → « Sur l'écran d'accueil ».
+    </p>
+  </section>
+
+  <section class="card glass" style="padding:18px">
+    <h2 style="margin-top:0">🔐 Compte</h2>
+    <form method="post" onsubmit="return confirm('Vous déconnecter de cet appareil ?')">
+      <input type="hidden" name="action" value="logout_all"/>
+      <button type="submit" class="btn" style="background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.4)">
+        Se déconnecter
+      </button>
+    </form>
+  </section>
+</div>
+{% endblock %}

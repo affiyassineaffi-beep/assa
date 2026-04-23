@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ t('login_title') }}{% endblock %}
+{% block content %}
+<div class="container narrow">
+  <div class="auth-card">
+    <p class="eyebrow">{{ t('app_name') }}</p>
+    <h1 class="auth-title">{{ t('login_title') }}</h1>
+    <p class="auth-lead">{{ t('login_lead') }}</p>
+
+    <a class="google-btn" href="{{ url_for('google_login') }}">
+      <span class="google-icon">G</span>{{ t('continue_google') }}
+    </a>
+
+    <div class="divider"><span>{{ t('or_use_email') }}</span></div>
+
+    <form method="post" class="form">
+      <label class="field">
+        <span>{{ t('email_label') }}</span>
+        <input type="email" name="email" autocomplete="email" required autofocus/>
+      </label>
+      <label class="field">
+        <span>{{ t('password_label') }}</span>
+        <input type="password" name="password" autocomplete="current-password" required/>
+      </label>
+      <button type="submit" class="btn btn-primary btn-full">{{ t('login') }}</button>
+    </form>
+
+    <p class="auth-footer">{{ t('no_account') }}<a href="{{ url_for('register') }}">{{ t('create_one') }}</a></p>
+  </div>
+</div>
+{% endblock %}

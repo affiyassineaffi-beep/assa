@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Classement · {{ t('app_name') }}{% endblock %}
+{% block content %}
+<div class="container narrow">
+  <header class="dm-page-head">
+    <h1>🏆 Classement</h1>
+    <p class="muted">Top étudiants et écoles de SSAS — XP gagné en participant.</p>
+  </header>
+
+  <!-- My XP card -->
+  <section class="card glass" style="padding:18px;margin-bottom:18px">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <div class="conv-avatar" style="background:var(--grad);width:56px;height:56px;font-size:22px">
+        {{ student.badge_icon or '🌱' }}
+      </div>
+      <div style="flex:1;min-width:200px">
+        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+          <strong style="font-size:1.1rem">{{ student.username }} · Niveau {{ student.level }}</strong>
+          <span class="muted small" id="xp-card-points">{{ student.points }} XP</span>
+        </div>
+        <div class="xp-bar"><span id="xp-card-bar"
+             style="width: {{ (student.experience / xp_for_next(student.level) * 100)|round(1) }}%"></span></div>
+        <div class="muted small" id="xp-card-prog">
+          {{ student.experience }} / {{ xp_for_next(student.level) }} XP — prochain niveau
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="lb-tabs">
+    <button class="lb-tab active" data-tab="students">👥 Étudiants</button>
+    <button class="lb-tab" data-tab="schools">🏫 Écoles</button>
+  </div>
+
+  <section class="card glass lb-pane" data-pane="students">
+    {% if not top_students %}
+      <p class="muted">Aucun joueur classé pour l'instant. Sois le premier !</p>
+    {% else %}
+      <ol class="lb-list">
+        {% for s in top_students %}
+          <li class="lb-row">
+            <span class="lb-rank">{{ loop.index }}</span>
+            {% if s.avatar_url %}
+              <img class="conv-avatar lb-avatar" src="{{ s.avatar_url }}" alt=""/>
+            {% else %}
+              <span class="conv-avatar lb-avatar" style="background:{{ school_badge_color(s.school_name or '') }}">
+                {{ (s.username or '?')[0]|upper }}
+              </span>
+            {% endif %}
+            <div class="lb-info">
+              <strong>{{ s.username }} <span class="lb-badge">{{ s.badge_icon or '🌱' }}</span></strong>
+              <span class="muted small">{{ s.school_name or '—' }} · Niveau {{ s.level }}</span>
+            </div>
+            <span class="lb-pts">{{ s.points }} XP</span>
+          </li>
+        {% endfor %}
+      </ol>
+    {% endif %}
+  </section>
+
+  <section class="card glass lb-pane" data-pane="schools" hidden>
+    {% if not top_schools %}
+      <p class="muted">Aucune école classée pour l'instant.</p>
+    {% else %}
+      <ol class="lb-list">
+        {% for s in top_schools %}
+          <li class="lb-row">
+            <span class="lb-rank">{{ loop.index }}</span>
+            <span class="conv-avatar lb-avatar" style="background:{{ school_badge_color(s.name) }}">🏫</span>
+            <div class="lb-info">
+              <strong><a href="{{ url_for('school_explorer', institution=s.name) }}">{{ s.name }}</a></strong>
+              <span class="muted small">{{ s.members }} étudiant(s)</span>
+            </div>
+            <span class="lb-pts">{{ s.total }} XP</span>
+          </li>
+        {% endfor %}
+      </ol>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.lb-tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.lb-tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.querySelectorAll('.lb-pane').forEach(p => p.hidden = (p.dataset.pane !== t.dataset.tab));
+  });
+});
+</script>
+{% endblock %}

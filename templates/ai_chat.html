@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Sami · Compagnon IA{% endblock %}
+{% block content %}
+<div class="chat-page" data-me-id="{{ student.id }}">
+
+  <header class="chat-header glass">
+    <a href="{{ url_for('dashboard') }}" class="chat-back" aria-label="Retour">←</a>
+    <div class="chat-avatar ai-avatar">✨</div>
+    <div class="chat-header-info">
+      <strong class="chat-header-name">Sami · IA</strong>
+      <span class="chat-header-sub muted small">
+        {% if ai_configured %}En ligne · powered by Gemini{% else %}Hors-ligne — clé API manquante{% endif %}
+      </span>
+    </div>
+    <form method="post" action="{{ url_for('ai_reset') }}" style="margin-left:auto"
+          onsubmit="return confirm('Effacer la conversation ?')">
+      <button type="submit" class="chat-back" title="Nouvelle conversation">↻</button>
+    </form>
+  </header>
+
+  <div class="chat-stream" id="ai-stream">
+    {% if not history %}
+      <div class="chat-bubble theirs">
+        <div class="bubble-body">Salut {{ student.username }} 👋 — moi c'est Sami. On parle études, tech, ou n'importe quoi qui te trotte dans la tête ?</div>
+      </div>
+    {% else %}
+      {% for h in history %}
+        <div class="chat-bubble {{ 'mine' if h.role == 'user' else 'theirs' }}">
+          <div class="bubble-body">{{ h.text }}</div>
+        </div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <form class="chat-composer glass" id="ai-form" autocomplete="off">
+    <input type="text" id="ai-input" placeholder="{% if ai_configured %}Pose ta question à Sami…{% else %}Indisponible{% endif %}"
+           {% if not ai_configured %}disabled{% endif %} maxlength="2000"/>
+    <button type="submit" class="chat-send" aria-label="Envoyer" {% if not ai_configured %}disabled{% endif %}>➤</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  const stream = document.getElementById('ai-stream');
+  const form   = document.getElementById('ai-form');
+  const input  = document.getElementById('ai-input');
+
+  function scrollDown(){ stream.scrollTop = stream.scrollHeight; }
+  scrollDown();
+
+  function bubble(text, mine){
+    const div = document.createElement('div');
+    div.className = 'chat-bubble ' + (mine ? 'mine' : 'theirs');
+    const body = document.createElement('div');
+    body.className = 'bubble-body';
+    body.textContent = text;
+    div.appendChild(body);
+    stream.appendChild(div);
+    scrollDown();
+    return body;
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = input.value.trim();
+    if (!msg) return;
+    bubble(msg, true);
+    input.value = '';
+    input.disabled = true;
+
+    const replyBody = bubble('', false);
+    replyBody.parentElement.classList.add('streaming');
+
+    try {
+      const resp = await fetch('/ai/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg }),
+      });
+      if (!resp.ok || !resp.body){
+        const err = await resp.json().catch(() => ({error:'Erreur serveur'}));
+        replyBody.textContent = '⚠️ ' + (err.error || 'Erreur');
+        replyBody.parentElement.classList.remove('streaming');
+        input.disabled = false; input.focus();
+        return;
+      }
+      // Parse SSE stream
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      let acc = '';
+      let done = false;
+      while (!done){
+        const { value, done: rDone } = await reader.read();
+        if (rDone) break;
+        buf += decoder.decode(value, { stream: true });
+        // Split on blank line (event boundary)
+        const events = buf.split('\n\n');
+        buf = events.pop();
+        for (const evt of events){
+          const lines = evt.split('\n');
+          let dataLines = [];
+          let evtName = 'message';
+          for (const l of lines){
+            if (l.startsWith('event: ')) evtName = l.slice(7).trim();
+            else if (l.startsWith('data: ')) dataLines.push(l.slice(6));
+          }
+          if (evtName === 'done'){ done = true; continue; }
+          if (evtName === 'error'){
+            replyBody.textContent = '⚠️ ' + dataLines.join('\n');
+            replyBody.parentElement.classList.add('bubble-error');
+            done = true; continue;
+          }
+          if (evtName === 'status'){
+            // Show transient status (retry / key rotation) without erasing reply
+            replyBody.textContent = dataLines.join('\n');
+            scrollDown();
+            continue;
+          }
+          // data lines: each "\\n" placeholder becomes a real newline
+          for (const d of dataLines){
+            if (d === '\\n') acc += '\n';
+            else acc += d;
+          }
+          replyBody.textContent = acc;
+          scrollDown();
+        }
+      }
+    } catch (err){
+      replyBody.textContent = '⚠️ Erreur réseau : ' + err.message;
+    } finally {
+      replyBody.parentElement.classList.remove('streaming');
+      input.disabled = false; input.focus();
+    }
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}{{ t('profile_title') }}{% endblock %}
+{% block content %}
+<div class="container narrow-wide">
+  <div class="auth-card">
+    <p class="eyebrow">{{ t('app_name') }}</p>
+    <h1 class="auth-title">{{ t('profile_title') }}</h1>
+    <p class="auth-lead">{{ t('profile_lead') }}</p>
+
+    {% if student and student.school_name %}
+    <div class="profile-badge-preview" style="border-color:{{ school_badge_color(student.school_name) }}">
+      <span class="badge-circle" style="background:{{ school_badge_color(student.school_name) }}">
+        {{ (student.school_name or 'S')[0] }}
+      </span>
+      <div>
+        <strong>{{ student.school_name }}</strong>
+        <p class="muted small">{{ student.region_city }} · {{ level_display(student.educational_level or '') }}</p>
+      </div>
+      {% if is_djebel_school(student.school_name) %}
+        <span class="tag tag-djebel">{{ t('djebel_badge') }}</span>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <form method="post" class="form grid-2">
+      <label class="field">
+        <span>{{ t('edu_level') }}</span>
+        <select name="educational_level" id="p-level" required>
+          <option value="">{{ t('select_level') }}</option>
+          {% for lvl in educational_levels %}
+            <option value="{{ lvl }}" {% if student.educational_level == lvl %}selected{% endif %}>
+              {{ level_display(lvl) }}
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label class="field" id="p-section-wrap" style="{% if student.educational_level != 'Secondary' %}display:none{% endif %}">
+        <span>{{ t('section_label') }}</span>
+        <select name="section" id="p-section">
+          <option value="">{{ t('select_section') }}</option>
+          {% for s in sections %}
+            <option value="{{ s }}" {% if student.section == s %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label class="field">
+        <span>{{ t('region_city') }}</span>
+        <select name="region_city" id="p-region" required>
+          <option value="">{{ t('select_region') }}</option>
+          {% for r in regions %}
+            <option value="{{ r }}" {% if student.region_city == r %}selected{% endif %}>{{ r }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label class="field">
+        <span>{{ t('school_name') }}</span>
+        <select name="school_name" id="p-school" required>
+          <option value="">{{ t('select_school') }}</option>
+          {% for s in all_schools %}
+            <option value="{{ s }}" {% if student.school_name == s %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label class="field">
+        <span>{{ t('class_section') }}</span>
+        <select name="class_section" id="p-class" required data-current="{{ student.class_section or '' }}">
+          <option value="">{{ t('select_class') }}</option>
+          {% set current_grades = GRADES_BY_LEVEL.get(student.educational_level, []) %}
+          {% for c in current_grades %}
+            <option value="{{ c }}" {% if student.class_section == c %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label class="field">
+        <span>{{ t('phone_label') }}</span>
+        <input type="tel" name="phone" value="{{ student.phone or '' }}" placeholder="+216 XX XXX XXX"/>
+      </label>
+
+      <button type="submit" class="btn btn-primary btn-full span-2">{{ t('save') }}</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+new TomSelect('#p-level',   { allowEmptyOption:true });
+new TomSelect('#p-region',  { allowEmptyOption:true });
+new TomSelect('#p-school',  { allowEmptyOption:true });
+const classTs = new TomSelect('#p-class',   { allowEmptyOption:true });
+new TomSelect('#p-section', { allowEmptyOption:true });
+
+const lvlSel = document.getElementById('p-level');
+const secWrap = document.getElementById('p-section-wrap');
+function syncSection(){
+  secWrap.style.display = (lvlSel.value === 'Secondary') ? '' : 'none';
+}
+lvlSel.addEventListener('change', syncSection);
+
+// Cascade: load Tunisian grades for the selected level
+const GRADES_BY_LEVEL = {{ GRADES_BY_LEVEL | tojson }};
+const currentClass = document.getElementById('p-class').dataset.current || '';
+function updateClasses(){
+  const grades = GRADES_BY_LEVEL[lvlSel.value] || [];
+  classTs.clearOptions();
+  classTs.addOption({value:'', text:'{{ t("select_class") }}'});
+  grades.forEach(g => classTs.addOption({value:g, text:g}));
+  if(currentClass && grades.includes(currentClass)) classTs.setValue(currentClass);
+  classTs.refreshOptions(false);
+}
+lvlSel.addEventListener('change', updateClasses);
+
+const regionSel = document.getElementById('p-region');
+const schoolTs  = document.getElementById('p-school').tomselect;
+async function updateSchools(){
+  const region = document.getElementById('p-region').value;
+  const level  = document.getElementById('p-level').value;
+  if(!region || !level){ return; }
+  const resp = await fetch(`/api/schools?region=${encodeURIComponent(region)}&level=${encodeURIComponent(level)}`);
+  const schools = await resp.json();
+  const current = schoolTs.getValue();
+  schoolTs.clearOptions();
+  schoolTs.addOption({value:'', text:'{{ t("select_school") }}'});
+  schools.forEach(s => schoolTs.addOption({value:s, text:s}));
+  if(current && schools.includes(current)) schoolTs.setValue(current);
+  schoolTs.refreshOptions(false);
+}
+regionSel.addEventListener('change', updateSchools);
+lvlSel.addEventListener('change', updateSchools);
+</script>
+{% endblock %}

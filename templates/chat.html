@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}{{ peer.username }} · Discussion{% endblock %}
+{% block content %}
+<div class="chat-page" data-peer-id="{{ peer.id }}" data-me-id="{{ student.id }}">
+
+  <header class="chat-header glass">
+    <a href="{{ url_for('messages') }}" class="chat-back" aria-label="Retour">←</a>
+    {% if peer.avatar_url %}
+      <img class="chat-avatar" src="{{ peer.avatar_url }}" alt=""/>
+    {% else %}
+      <div class="chat-avatar" style="background:{{ school_badge_color(peer.school_name or '') }}">
+        {{ (peer.username or '?')[0]|upper }}
+      </div>
+    {% endif %}
+    <div class="chat-header-info">
+      <strong class="chat-header-name">
+        {{ peer.username }}
+        <span class="lb-badge" title="Niveau {{ peer.level }}">{{ peer.badge_icon or '🌱' }}</span>
+        <span class="muted small">Niv.{{ peer.level }}</span>
+      </strong>
+      <span class="chat-header-sub muted small">
+        {{ peer.class_section or level_display(peer.educational_level or '') }}
+        {% if peer.school_name %} ·
+          <a href="{{ url_for('school_explorer', institution=peer.school_name) }}">{{ peer.school_name }}</a>
+        {% endif %}
+      </span>
+    </div>
+    <a href="{{ url_for('call_page', peer_id=peer.id, mode='audio', role='caller') }}"
+       class="chat-back" title="Appel audio" style="margin-left:auto">📞</a>
+    <a href="{{ url_for('call_page', peer_id=peer.id, mode='video', role='caller') }}"
+       class="chat-back" title="Appel vidéo">🎥</a>
+  </header>
+
+  <div class="chat-stream" id="chat-stream">
+    {% for m in thread %}
+      {% set mine = (m.sender_id == student.id) %}
+      <div class="chat-bubble {{ 'mine' if mine else 'theirs' }}" data-msg-id="{{ m.id }}">
+        <div class="bubble-body">{{ m.body }}</div>
+        <div class="bubble-meta">
+          <span class="bubble-time">{{ m.created_at.strftime('%H:%M') }}</span>
+          {% if mine %}
+            <span class="bubble-status" data-status="{{ 'seen' if m.is_read else 'sent' }}">
+              {{ '✓✓' if m.is_read else '✓' }}
+            </span>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="typing-indicator" id="typing-indicator" hidden>
+    <span></span><span></span><span></span>
+  </div>
+
+  <form class="chat-composer glass" id="chat-form" autocomplete="off">
+    <input type="text" id="chat-input" placeholder="Écrire un message…" maxlength="2000"/>
+    <button type="submit" class="chat-send" aria-label="Envoyer">➤</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+(function(){
+  const root      = document.querySelector('.chat-page');
+  const peerId    = parseInt(root.dataset.peerId, 10);
+  const meId      = parseInt(root.dataset.meId, 10);
+  const stream    = document.getElementById('chat-stream');
+  const form      = document.getElementById('chat-form');
+  const input     = document.getElementById('chat-input');
+  const typingEl  = document.getElementById('typing-indicator');
+
+  const socket = io({ transports: ['websocket', 'polling'] });
+
+  function scrollDown(){
+    stream.scrollTop = stream.scrollHeight;
+  }
+  scrollDown();
+
+  function renderBubble(msg, mine, optimistic){
+    const div = document.createElement('div');
+    div.className = 'chat-bubble ' + (mine ? 'mine' : 'theirs');
+    if (msg.id) div.dataset.msgId = msg.id;
+    if (optimistic) div.dataset.optimistic = '1';
+    const time = msg.created_at
+      ? new Date(msg.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
+      : new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    const statusHtml = mine
+      ? `<span class="bubble-status" data-status="${msg.is_read ? 'seen' : 'sent'}">${msg.is_read ? '✓✓' : '✓'}</span>`
+      : '';
+    div.innerHTML = `
+      <div class="bubble-body"></div>
+      <div class="bubble-meta">
+        <span class="bubble-time">${time}</span>
+        ${statusHtml}
+      </div>`;
+    div.querySelector('.bubble-body').textContent = msg.body;
+    return div;
+  }
+
+  // Send via SocketIO with optimistic bubble
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const body = input.value.trim();
+    if (!body) return;
+    const optimistic = renderBubble({ body }, true, true);
+    stream.appendChild(optimistic); scrollDown();
+    socket.emit('send_message', { peer_id: peerId, body });
+    input.value = '';
+    socket.emit('typing', { peer_id: peerId, is_typing: false });
+  });
+
+  // Confirmation of own send → replace optimistic
+  socket.on('message_sent', (msg) => {
+    if (msg.peer_id !== peerId) return;
+    const opt = stream.querySelector('.chat-bubble.mine[data-optimistic="1"]');
+    if (opt) opt.remove();
+    stream.appendChild(renderBubble(msg, true, false));
+    scrollDown();
+  });
+
+  // Incoming message from peer
+  socket.on('new_message', (msg) => {
+    const isCurrentThread = (msg.sender_id === peerId);
+    if (!isCurrentThread) return;          // belongs to a different thread
+    stream.appendChild(renderBubble(msg, false, false));
+    scrollDown();
+    // Immediately mark seen since this thread is open
+    socket.emit('mark_seen', { peer_id: peerId });
+  });
+
+  // Peer saw my messages → upgrade my ✓ to ✓✓
+  socket.on('messages_seen', (data) => {
+    if (data.by_user_id !== peerId) return;
+    document.querySelectorAll('.chat-bubble.mine .bubble-status').forEach(el => {
+      el.dataset.status = 'seen';
+      el.textContent = '✓✓';
+    });
+  });
+
+  // Typing indicator
+  let typingTimer = null, typingActive = false;
+  input.addEventListener('input', () => {
+    if (!typingActive){
+      typingActive = true;
+      socket.emit('typing', { peer_id: peerId, is_typing: true });
+    }
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(() => {
+      typingActive = false;
+      socket.emit('typing', { peer_id: peerId, is_typing: false });
+    }, 1500);
+  });
+
+  socket.on('peer_typing', (data) => {
+    if (data.from_user_id !== peerId) return;
+    typingEl.hidden = !data.is_typing;
+    if (data.is_typing) scrollDown();
+  });
+
+  // Mark thread seen on connect (in case we missed events while loading)
+  socket.on('connected', () => {
+    socket.emit('mark_seen', { peer_id: peerId });
+  });
+})();
+</script>
+{% endblock %}

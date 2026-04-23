@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="{{ 'ar' if is_rtl else 'fr' }}" dir="{{ 'rtl' if is_rtl else 'ltr' }}" data-theme="{{ theme }}">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta name="theme-color" content="#0a0a0f"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-title" content="SSAS"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <link rel="manifest" href="{{ url_for('pwa_manifest') }}"/>
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon.svg') }}"/>
+  <title>{% block title %}{{ t('app_name') }}{% endblock %}</title>
+
+  <!-- Cairo font (covers Arabic + Latin perfectly) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+
+  <!-- Tom Select (searchable dropdowns) -->
+  <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}"/>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}"/>
+</head>
+<body class="{{ 'rtl' if is_rtl else 'ltr' }}">
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <div class="navbar-inner">
+    <a href="{{ url_for('index') }}" class="navbar-brand">
+      <span class="brand-icon">📚</span>{{ t('app_name') }}
+    </a>
+    <div class="navbar-right">
+      {% if current_student %}
+        <a href="{{ url_for('messages') }}" class="nav-link msg-link">
+          {{ t('messages') }}
+          {% if unread_count > 0 %}<span class="badge-dot">{{ unread_count }}</span>{% endif %}
+        </a>
+        <a href="{{ url_for('dashboard') }}" class="nav-link">{{ t('dashboard') }}</a>
+        <a href="{{ url_for('player') }}" class="nav-link">🎧 Lecteur</a>
+        <a href="{{ url_for('complete_profile') }}" class="nav-link">{{ t('profile') }}</a>
+        <a href="{{ url_for('logout') }}" class="nav-link nav-muted">{{ t('logout') }}</a>
+      {% else %}
+        <a href="{{ url_for('login') }}" class="nav-link">{{ t('login') }}</a>
+        <a href="{{ url_for('register') }}" class="btn btn-primary btn-sm">{{ t('register') }}</a>
+      {% endif %}
+      <button id="pwa-install-btn" class="btn btn-ghost btn-sm" hidden
+              title="Installer l'application">⬇️ <span class="hide-sm">Installer</span></button>
+      <select id="lang-picker" class="lang-picker"
+              aria-label="{{ t('language') }}"
+              onchange="window.location.href='{{ url_for('set_lang', lang='__L__') }}'.replace('__L__', this.value)">
+        {% for code, info in LANGUAGES.items() %}
+          <option value="{{ code }}" {% if code == lang %}selected{% endif %}>
+            {{ info[1] }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+</nav>
+
+<!-- FLASH MESSAGES -->
+{% with msgs = get_flashed_messages(with_categories=true) %}
+  {% if msgs %}
+    <div class="flash-wrap">
+      {% for cat, msg in msgs %}
+        <div class="flash flash-{{ cat }}">
+          <span>{{ msg }}</span>
+          <button class="flash-close" onclick="this.parentElement.remove()">✕</button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<main class="page-main">
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <span>{{ t('app_name') }} &copy; 2026</span>
+    <span class="footer-lang">{{ language_label(lang) }}</span>
+  </div>
+</footer>
+
+{% if current_student %}
+<nav class="bottom-nav glass" aria-label="Navigation principale">
+  <a href="{{ url_for('dashboard') }}" class="bn-item">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>
+    <span>{{ t('home') if t('home') != 'home' else 'Accueil' }}</span>
+  </a>
+  <a href="{{ url_for('search_page') }}" class="bn-item">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+    <span>{{ t('discover') if t('discover') != 'discover' else 'Découvrir' }}</span>
+  </a>
+  <a href="{{ url_for('ai_chat') }}" class="bn-item bn-center">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l1.8 4.6L18 8.4l-3.6 3.2L15.2 16 12 13.6 8.8 16l.8-4.4L6 8.4l4.2-1.8z"/></svg>
+    <span>Sami</span>
+  </a>
+  <a href="{{ url_for('messages') }}" class="bn-item">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 11-3.5-6.6L21 4l-1.4 3.5A7.96 7.96 0 0121 12z"/></svg>
+    <span>{{ t('messages') }}</span>
+    {% if unread_count > 0 %}<span class="bn-dot badge-dot">{{ unread_count }}</span>{% endif %}
+  </a>
+  <a href="{{ url_for('settings_page') }}" class="bn-item">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 5-6 8-6s7 2 8 6"/></svg>
+    <span>{{ t('profile') }}</span>
+  </a>
+</nav>
+{% include "_player_footer.html" %}
+{% endif %}
+
+{% block scripts %}{% endblock %}
+
+<!-- Auto-scroll chat streams to bottom whenever new content is appended -->
+<script>
+(function(){
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('#chat-stream, #ai-stream').forEach(stream => {
+      stream.scrollTop = stream.scrollHeight;
+      const obs = new MutationObserver(() => {
+        stream.scrollTop = stream.scrollHeight;
+      });
+      obs.observe(stream, { childList: true, subtree: true, characterData: true });
+    });
+  });
+})();
+</script>
+
+<!-- Keep chat composer visible above the on-screen keyboard -->
+<script>
+(function(){
+  if (!window.visualViewport) return;
+  const vv = window.visualViewport;
+  function onResize(){
+    const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    document.body.style.setProperty('--kb-offset', offset + 'px');
+    document.body.classList.toggle('kb-open', offset > 80);
+    // Auto-scroll any active chat to bottom when the keyboard opens
+    const stream = document.getElementById('chat-stream') || document.getElementById('ai-stream');
+    if (stream) stream.scrollTop = stream.scrollHeight;
+  }
+  vv.addEventListener('resize', onResize);
+  vv.addEventListener('scroll', onResize);
+})();
+</script>
+
+<!-- Global ripple click effect on buttons / nav items -->
+<script>
+(function(){
+  const SELECTOR = '.btn, .bn-item, .call-btn, .nav-link, .lang-btn, ' +
+                   'button[type="submit"], .ssas-controls button, .chat-send, .ripple';
+  document.addEventListener('pointerdown', (e) => {
+    const el = e.target.closest(SELECTOR);
+    if (!el || el.disabled) return;
+    el.classList.add('ripple');
+    const rect = el.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height);
+    const ink = document.createElement('span');
+    ink.className = 'ripple-ink';
+    ink.style.width = ink.style.height = size + 'px';
+    ink.style.left = (e.clientX - rect.left - size/2) + 'px';
+    ink.style.top  = (e.clientY - rect.top  - size/2) + 'px';
+    el.appendChild(ink);
+    setTimeout(() => ink.remove(), 600);
+  }, { passive: true });
+})();
+</script>
+
+<!-- Auto-poll unread messages badge every 30 sec -->
+{% if current_student %}
+<script>
+(function(){
+  function pollUnread(){
+    fetch('/messages/poll').then(r=>r.json()).then(data=>{
+      document.querySelectorAll('.badge-dot').forEach(el=>{
+        if(data.unread>0){ el.textContent=data.unread; el.style.display='inline-flex'; }
+        else { el.style.display='none'; }
+      });
+    }).catch(()=>{});
+  }
+  setInterval(pollUnread, 30000);
+})();
+</script>
+
+<!-- PWA registration + install prompt -->
+<script>
+(function(){
+  if ('serviceWorker' in navigator){
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(()=>{});
+    });
+  }
+  let deferred = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferred = e;
+    const btn = document.getElementById('pwa-install-btn');
+    if (btn){
+      btn.hidden = false;
+      btn.addEventListener('click', async () => {
+        if (!deferred) return;
+        deferred.prompt();
+        await deferred.userChoice;
+        deferred = null;
+        btn.hidden = true;
+      });
+    }
+  });
+})();
+</script>
+
+<!-- Global socket: incoming calls + live XP toasts -->
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+(function(){
+  // Even on chat/call pages we want XP toasts; only skip socket creation if one already exists.
+  let s;
+  try { s = io({ transports: ['websocket','polling'] }); } catch(e){ return; }
+
+  if (!document.querySelector('.call-page, .chat-page')){
+    s.on('incoming_call', (msg) => {
+      const ok = confirm('📞 ' + (msg.from_username || 'Quelqu\'un') +
+                         ' vous appelle (' + (msg.mode === 'audio' ? 'audio' : 'vidéo') + '). Répondre ?');
+      if (ok){
+        window.location.href = '/call/' + msg.from_user_id +
+          '?mode=' + encodeURIComponent(msg.mode || 'video') + '&role=callee';
+      }
+    });
+  }
+
+  s.on('xp_update', (msg) => {
+    const t = document.createElement('div');
+    t.className = 'xp-toast';
+    t.textContent = (msg.level_up ? '🎊 Niveau ' + msg.level + ' ! ' : '') +
+                    '+' + msg.awarded + ' XP';
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2400);
+    // Live update any XP bars/cards on the page
+    document.querySelectorAll('[data-xp-points]').forEach(el => el.textContent = msg.points);
+    document.querySelectorAll('[data-xp-level]').forEach(el => el.textContent = msg.level);
+    document.querySelectorAll('[data-xp-bar]').forEach(el => {
+      const pct = Math.min(100, (msg.experience / msg.next_level_at) * 100);
+      el.style.width = pct + '%';
+    });
+  });
+})();
+</script>
+{% endif %}
+</body>
+</html>

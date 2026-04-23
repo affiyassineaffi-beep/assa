@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Ressources · {{ t('app_name') }}{% endblock %}
+{% block content %}
+<div class="container narrow">
+  <header class="dm-page-head" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+    <div>
+      <h1>📚 Ressources</h1>
+      <p class="muted">Partagez résumés, PDFs et liens — gagnez +20 XP par partage.</p>
+    </div>
+    <a href="{{ url_for('resource_new') }}" class="btn btn-primary">+ Partager</a>
+  </header>
+
+  <form method="get" class="yt-search-bar glass" style="margin-bottom:14px">
+    <input type="text" name="q" value="{{ q }}" placeholder="Recherche : titre, matière, description…"/>
+    <select name="scope" onchange="this.form.submit()" style="background:transparent;color:var(--txt-0);border:0">
+      <option value="all" {% if scope=='all' %}selected{% endif %}>Toutes</option>
+      <option value="school" {% if scope=='school' %}selected{% endif %}>Mon école</option>
+    </select>
+  </form>
+
+  {% if not resources %}
+    <p class="muted" style="text-align:center;padding:30px">Aucune ressource pour l'instant. Soyez le premier à partager !</p>
+  {% else %}
+    <ul class="resource-list">
+      {% for r in resources %}
+        <li class="resource-card glass">
+          <div class="resource-head">
+            <span class="resource-icon">
+              {% if r.kind == 'file' %}📄{% elif r.kind == 'link' %}🔗{% else %}📝{% endif %}
+            </span>
+            <div style="flex:1;min-width:0">
+              <strong class="resource-title">{{ r.title }}</strong>
+              <div class="muted small">
+                {{ r.subject or '—' }}
+                {% if r.educational_level %} · {{ level_display(r.educational_level) }}{% endif %}
+                {% if r.institution %} · <a href="{{ url_for('school_explorer', institution=r.institution) }}">{{ r.institution }}</a>{% endif %}
+              </div>
+            </div>
+          </div>
+          {% if r.description %}<p class="resource-desc">{{ r.description }}</p>{% endif %}
+          {% if r.kind == 'text' and r.body %}<pre class="resource-body">{{ r.body[:600] }}{% if r.body|length > 600 %}…{% endif %}</pre>{% endif %}
+
+          <div class="resource-actions">
+            {% if r.kind == 'file' and r.file_path %}
+              <a href="{{ r.file_path }}" download class="btn btn-sm btn-primary">⬇ Télécharger</a>
+            {% elif r.kind == 'link' and r.link_url %}
+              <a href="{{ r.link_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-primary">🔗 Ouvrir</a>
+            {% endif %}
+            <button type="button" class="btn btn-sm upvote-btn" data-rid="{{ r.id }}">
+              👍 <span class="upvote-count">{{ r.upvotes }}</span>
+            </button>
+            <span class="muted small" style="margin-left:auto">
+              par {{ r.student.username if r.student else '?' }}
+              {% if r.created_at %} · {{ r.created_at.strftime('%d/%m') }}{% endif %}
+            </span>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.upvote-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const rid = btn.dataset.rid;
+    btn.disabled = true;
+    try {
+      const r = await fetch('/resources/' + rid + '/upvote', { method: 'POST' });
+      const d = await r.json();
+      if (d.upvotes != null) btn.querySelector('.upvote-count').textContent = d.upvotes;
+    } finally { btn.disabled = false; }
+  });
+});
+</script>
+{% endblock %}

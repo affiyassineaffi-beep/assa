@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}{{ t('dashboard') }}{% endblock %}
+{% block content %}
+<div class="container">
+
+  <!-- HERO HEADER -->
+  <section class="hero-card {% if is_djebel_school(student.school_name) %}djebel-hero{% endif %}">
+    <div class="hero-left">
+      <!-- School Badge -->
+      <div class="school-badge-big" style="background:{{ school_badge_color(student.school_name) }}">
+        {{ (student.school_name or 'S')[0]|upper }}
+      </div>
+      <div>
+        <p class="eyebrow {% if is_djebel_school(student.school_name) %}eyebrow-light{% endif %}">
+          {{ t('dashboard_eyebrow') }}
+        </p>
+        <h1>{{ t('hello') }}, {{ student.username }}</h1>
+        <div class="badge-row">
+          <span class="chip chip-school" style="background:{{ school_badge_color(student.school_name) }}22;border-color:{{ school_badge_color(student.school_name) }}44;color:{{ school_badge_color(student.school_name) }}">
+            {{ student.school_name }}
+          </span>
+          <span class="chip chip-level">
+            {{ level_display(student.educational_level or '') }}
+            {% if student.section %} · {{ student.section }}{% endif %}
+            · {{ student.class_section }}
+          </span>
+          {% if is_djebel_school(student.school_name) %}
+            <span class="chip chip-djebel">🏔 {{ t('djebel_badge') }}</span>
+          {% endif %}
+        </div>
+        <p class="lead {% if is_djebel_school(student.school_name) %}lead-light{% endif %}">
+          {{ t('dashboard_lead') }}
+        </p>
+      </div>
+    </div>
+    <a class="btn btn-secondary" href="{{ url_for('complete_profile') }}">{{ t('update_profile') }}</a>
+  </section>
+
+  <!-- Quick actions: gamification + study tools -->
+  <section class="card glass" style="padding:16px;margin:14px 0;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+    <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:200px">
+      <span style="font-size:28px">{{ student.badge_icon or '🌱' }}</span>
+      <div style="flex:1">
+        <strong>Niveau <span data-xp-level>{{ student.level }}</span> ·
+                <span data-xp-points>{{ student.points }}</span> XP</strong>
+        <div class="xp-bar"><span data-xp-bar
+             style="width: {{ ((student.experience / (100 + (student.level-1)*50)) * 100)|round(1) }}%"></span></div>
+      </div>
+    </div>
+    <a href="{{ url_for('leaderboard') }}" class="btn btn-sm">🏆 Classement</a>
+    <a href="{{ url_for('resources_index') }}" class="btn btn-sm">📚 Ressources</a>
+    <a href="{{ url_for('focus_page') }}" class="btn btn-sm">🎯 Focus</a>
+    {% if student.school_name %}
+      <a href="{{ url_for('school_explorer', institution=student.school_name) }}" class="btn btn-sm">🏫 Mon école</a>
+    {% endif %}
+  </section>
+
+  <!-- AVERAGE STATS (shown once grades exist) -->
+  {% if grades %}
+  <section class="stats-row">
+    <div class="stat-card">
+      <span class="stat-label">{{ t('weighted_avg') }}</span>
+      <span class="stat-val {% if avg_data.weighted_average >= 10 %}val-good{% else %}val-bad{% endif %}">
+        {{ avg_data.weighted_average }}/20
+      </span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">{{ t('bonus_pts') }}</span>
+      <span class="stat-val val-bonus">+{{ avg_data.total_bonus }}</span>
+    </div>
+    <div class="stat-card stat-card-main">
+      <span class="stat-label">{{ t('final_avg') }}</span>
+      <span class="stat-val stat-big {% if avg_data.final_average >= 10 %}val-good{% else %}val-bad{% endif %}">
+        {{ avg_data.final_average }}/20
+      </span>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ADD GRADE -->
+  <section class="card">
+    <h2>{{ t('add_grade') }}</h2>
+    <form method="post" action="{{ url_for('add_grade') }}" class="grade-form">
+      <label class="field">
+        <span>{{ t('select_subject') }}</span>
+        <select name="subject" id="subject-sel" required>
+          <option value="">{{ t('select_subject') }}</option>
+          {% for subj in subjects %}
+            <option value="{{ subj.name_fr }}">
+              {{ subj.name_fr }}
+              {% if lang == 'ar' %} — {{ subj.name_ar }}{% endif %}
+              (×{{ '%g'|format(subj.coefficient) }}{% if subj.optional %}, {{ t('optional_label') }}{% endif %})
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field">
+        <span>{{ t('col_note') }}</span>
+        <input type="number" step="0.01" name="note" min="0" max="20" placeholder="16.5" required/>
+      </label>
+      <label class="field check-field">
+        <input type="checkbox" name="is_public"/>
+        <span>{{ t('publish_grade') }}</span>
+      </label>
+      <button type="submit" class="btn btn-primary">{{ t('add_grade') }}</button>
+    </form>
+  </section>
+
+  <!-- AI MENTOR -->
+  {% if mentor_tips %}
+  <section class="card mentor-card">
+    <div class="mentor-header">
+      <span class="mentor-icon">🤖</span>
+      <div>
+        <h2>{{ t('mentor_title') }}</h2>
+        <p class="muted">{{ t('mentor_lead') }}</p>
+      </div>
+    </div>
+    <ul class="mentor-tips">
+      {% for tip in mentor_tips %}
+        <li class="mentor-tip">{{ tip }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <!-- GRADE LIST -->
+  <section class="card">
+    <div class="section-header">
+      <h2>{{ t('your_grades') }}</h2>
+      <p class="muted">{{ t('private_note') }}</p>
+    </div>
+
+    {% if grades %}
+      <div class="grade-list">
+        {% for grade in grades %}
+        <article class="grade-item {% if is_djebel_school(student.school_name) %}grade-djebel{% endif %}">
+          <!-- Left: subject info -->
+          <div class="grade-info">
+            <div class="grade-subject">{{ grade.subject }}</div>
+            <div class="grade-meta">
+              <span class="coeff-badge">×{{ '%g'|format(grade.coefficient) }}</span>
+              {% if grade.is_optional %}
+                <span class="option-badge">{{ t('optional_label') }}</span>
+              {% endif %}
+            </div>
+          </div>
+          <!-- Center: score -->
+          <div class="grade-score-wrap">
+            <span class="grade-score {% if grade.note >= 15 %}score-high{% elif grade.note < 10 %}score-low{% else %}score-mid{% endif %}">
+              {{ '%g'|format(grade.note) }}
+            </span>
+            <span class="score-denom">/20</span>
+            {% if grade.is_optional and grade.note > 10 %}
+              <span class="bonus-chip">+{{ '%g'|format((grade.note - 10) * grade.coefficient) }}</span>
+            {% endif %}
+          </div>
+          <!-- Right: visibility + delete -->
+          <div class="grade-actions">
+            <form method="post" action="{{ url_for('toggle_visibility', gid=grade.id) }}">
+              <label class="toggle-label">
+                <input type="checkbox" name="is_public"
+                       {% if grade.is_public %}checked{% endif %}
+                       onchange="this.form.submit()"/>
+                <span class="toggle-track"></span>
+                <span class="toggle-text">{{ t('is_public') if grade.is_public else t('is_private') }}</span>
+              </label>
+            </form>
+            <form method="post" action="{{ url_for('delete_grade', gid=grade.id) }}">
+              <button type="submit" class="btn btn-danger btn-sm">{{ t('delete') }}</button>
+            </form>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-state">{{ t('no_grades_yet') }}</p>
+    {% endif %}
+  </section>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+new TomSelect('#subject-sel', { allowEmptyOption: true });
+</script>
+{% endblock %}

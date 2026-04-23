@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ institution }} · École{% endblock %}
+{% block content %}
+<div class="container narrow">
+  <header class="dm-page-head" style="text-align:center">
+    <div class="conv-avatar" style="background:{{ school_badge_color(institution) }};width:84px;height:84px;font-size:36px;margin:0 auto 12px">🏫</div>
+    <h1>{{ institution }}</h1>
+    <p class="muted">{{ members|length }} étudiant(s) · {{ total_points }} XP cumulés</p>
+  </header>
+
+  <ul class="conv-list">
+    {% for m in members %}
+      <li>
+        <a href="{{ url_for('chat', peer_id=m.id) }}" class="conv-row">
+          {% if m.avatar_url %}
+            <img class="conv-avatar" src="{{ m.avatar_url }}" alt=""/>
+          {% else %}
+            <span class="conv-avatar" style="background:{{ school_badge_color(institution) }}">
+              {{ (m.username or '?')[0]|upper }}
+            </span>
+          {% endif %}
+          <div class="conv-meta">
+            <div class="conv-top">
+              <strong>{{ m.username }} <span class="lb-badge">{{ m.badge_icon or '🌱' }}</span></strong>
+              <span class="muted small">Niv. {{ m.level }} · {{ m.points }} XP</span>
+            </div>
+            <div class="conv-bottom">
+              <span class="conv-snippet">{{ m.class_section or '—' }}{% if m.section %} · {{ m.section }}{% endif %}</span>
+            </div>
+          </div>
+        </a>
+      </li>
+    {% else %}
+      <li class="muted" style="padding:18px">Aucun membre.</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

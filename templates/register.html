@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}{{ t('register_title') }}{% endblock %}
+{% block content %}
+<div class="container narrow-wide">
+  <div class="auth-card">
+    <p class="eyebrow">{{ t('app_name') }}</p>
+    <h1 class="auth-title">{{ t('register_title') }}</h1>
+    <p class="auth-lead">{{ t('register_lead') }}</p>
+
+    <a class="google-btn" href="{{ url_for('google_login') }}">
+      <span class="google-icon">G</span>{{ t('signup_google') }}
+    </a>
+
+    <div class="divider"><span>{{ t('or_create_email') }}</span></div>
+
+    <form method="post" class="form grid-2">
+      <!-- Row 1 -->
+      <label class="field">
+        <span>{{ t('full_name') }}</span>
+        <input type="text" name="username" minlength="3" required autofocus/>
+      </label>
+      <label class="field">
+        <span>{{ t('email_label') }}</span>
+        <input type="email" name="email" required/>
+      </label>
+      <!-- Row 2 -->
+      <label class="field">
+        <span>{{ t('password_label') }}</span>
+        <input type="password" name="password" minlength="4" required/>
+      </label>
+      <label class="field">
+        <span>{{ t('phone_label') }}</span>
+        <input type="tel" name="phone" placeholder="+216 XX XXX XXX"/>
+      </label>
+      <!-- Row 3 -->
+      <label class="field">
+        <span>{{ t('edu_level') }}</span>
+        <select name="educational_level" id="reg-level" required>
+          <option value="">{{ t('select_level') }}</option>
+          {% for lvl in educational_levels %}
+            <option value="{{ lvl }}">{{ level_display(lvl) }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field" id="section-field" style="display:none">
+        <span>{{ t('section_label') }}</span>
+        <select name="section" id="reg-section">
+          <option value="">{{ t('select_section') }}</option>
+          {% for s in sections %}
+            <option value="{{ s }}">{{ s }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <!-- Row 4 -->
+      <label class="field">
+        <span>{{ t('region_city') }}</span>
+        <select name="region_city" id="reg-region" required>
+          <option value="">{{ t('select_region') }}</option>
+          {% for r in regions %}
+            <option value="{{ r }}">{{ r }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field">
+        <span>{{ t('school_name') }}</span>
+        <select name="school_name" id="reg-school" required>
+          <option value="">{{ t('select_school') }}</option>
+          {% for s in all_schools %}
+            <option value="{{ s }}">{{ s }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <!-- Row 5 -->
+      <label class="field span-2">
+        <span>{{ t('class_section') }}</span>
+        <select name="class_section" id="reg-class" required>
+          <option value="">{{ t('select_class') }}</option>
+        </select>
+      </label>
+      <button type="submit" class="btn btn-primary btn-full span-2">{{ t('register') }}</button>
+    </form>
+
+    <p class="auth-footer">{{ t('already_account') }}<a href="{{ url_for('login') }}">{{ t('login') }}</a></p>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Tom Select for searchable dropdowns
+new TomSelect('#reg-level',  { allowEmptyOption:true });
+new TomSelect('#reg-region', { allowEmptyOption:true });
+new TomSelect('#reg-school', { allowEmptyOption:true });
+const classSel = new TomSelect('#reg-class',  { allowEmptyOption:true });
+new TomSelect('#reg-section',{ allowEmptyOption:true });
+
+// Show section field only for Secondary
+const levelSel = document.getElementById('reg-level');
+const sectionField = document.getElementById('section-field');
+function updateSection(){
+  sectionField.style.display = (levelSel.value === 'Secondary') ? '' : 'none';
+}
+levelSel.addEventListener('change', updateSection);
+
+// Cascade: load Tunisian grades for the selected level
+const GRADES_BY_LEVEL = {{ GRADES_BY_LEVEL | tojson }};
+function updateClasses(){
+  const level = levelSel.value;
+  const grades = GRADES_BY_LEVEL[level] || [];
+  classSel.clearOptions();
+  classSel.addOption({value:'', text:'{{ t("select_class") }}'});
+  grades.forEach(g => classSel.addOption({value:g, text:g}));
+  classSel.refreshOptions(false);
+}
+levelSel.addEventListener('change', updateClasses);
+updateClasses();
+
+// Dynamic school filtering by region+level
+const regionSel = document.getElementById('reg-region');
+const schoolSel = document.getElementById('reg-school').tomselect;
+
+async function updateSchools(){
+  const region = document.getElementById('reg-region').value;
+  const level  = document.getElementById('reg-level').value;
+  if(!region || !level){ return; }
+  const resp = await fetch(`/api/schools?region=${encodeURIComponent(region)}&level=${encodeURIComponent(level)}`);
+  const schools = await resp.json();
+  schoolSel.clearOptions();
+  schoolSel.addOption({value:'', text:'{{ t("select_school") }}'});
+  schools.forEach(s => schoolSel.addOption({value:s, text:s}));
+  schoolSel.refreshOptions(false);
+}
+regionSel.addEventListener('change', updateSchools);
+levelSel.addEventListener('change', updateSchools);
+</script>
+{% endblock %}

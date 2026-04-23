@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% block title %}Appel · {{ peer.username }}{% endblock %}
+{% block content %}
+<div class="call-page" data-peer-id="{{ peer.id }}" data-me-id="{{ student.id }}"
+     data-mode="{{ mode }}" data-role="{{ role }}">
+
+  <header class="chat-header glass">
+    <a href="{{ url_for('chat', peer_id=peer.id) }}" class="chat-back" aria-label="Retour">←</a>
+    <div class="chat-avatar" style="background:{{ school_badge_color(peer.school_name or '') }}">
+      {{ (peer.username or '?')[0]|upper }}
+    </div>
+    <div class="chat-header-info">
+      <strong class="chat-header-name">{{ peer.username }}</strong>
+      <span class="chat-header-sub muted small" id="call-status">
+        {{ 'Appel entrant…' if role == 'callee' else 'Appel en cours…' }}
+        ({{ 'Vidéo' if mode == 'video' else 'Audio' }})
+      </span>
+    </div>
+  </header>
+
+  <div class="call-stage">
+    <video id="remote-video" autoplay playsinline></video>
+    <video id="local-video" autoplay playsinline muted class="local-pip"></video>
+    <div class="call-overlay" id="call-overlay">
+      <div class="call-avatar-big">{{ (peer.username or '?')[0]|upper }}</div>
+      <p>{{ peer.username }}</p>
+    </div>
+  </div>
+
+  <div class="call-controls glass">
+    <button type="button" id="btn-mute" class="call-btn" aria-label="Couper le micro" title="Mute">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0"/><path d="M12 18v3"/>
+      </svg>
+    </button>
+    {% if mode == 'video' %}
+      <button type="button" id="btn-cam" class="call-btn" aria-label="Caméra" title="Camera">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 7h12v10H3z"/><path d="M21 7l-6 5 6 5z"/>
+        </svg>
+      </button>
+      <button type="button" id="btn-flip" class="call-btn" aria-label="Inverser caméra" title="Flip camera">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+          <path d="M3.5 9a9 9 0 0114.5-3.5L23 10"/><path d="M20.5 15a9 9 0 01-14.5 3.5L1 14"/>
+        </svg>
+      </button>
+    {% endif %}
+    <button type="button" id="btn-end" class="call-btn call-end" aria-label="Raccrocher" title="End call">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 16.92a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z" transform="rotate(135 12 12)"/>
+      </svg>
+    </button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+(function(){
+  const root   = document.querySelector('.call-page');
+  const peerId = parseInt(root.dataset.peerId, 10);
+  const meId   = parseInt(root.dataset.meId, 10);
+  const mode   = root.dataset.mode;
+  const role   = root.dataset.role;
+  const status = document.getElementById('call-status');
+  const remoteV = document.getElementById('remote-video');
+  const localV  = document.getElementById('local-video');
+  const overlay = document.getElementById('call-overlay');
+
+  const socket = io({ transports: ['websocket','polling'] });
+  let pc = null;
+  let localStream = null;
+  let pendingCandidates = [];
+  let remoteDescSet = false;
+
+  let facing = 'user';   // 'user' (front) | 'environment' (back)
+  function buildConstraints(){
+    return (mode === 'video')
+      ? { audio: true, video: { facingMode: facing } }
+      : { audio: true, video: false };
+  }
+
+  function setStatus(s){ status.textContent = s; }
+
+  async function getMedia(){
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia(buildConstraints());
+      localV.srcObject = localStream;
+      return true;
+    } catch(e){
+      alert('Impossible d\'accéder au micro/caméra : ' + e.message);
+      return false;
+    }
+  }
+
+  async function flipCamera(){
+    if (mode !== 'video' || !localStream) return;
+    facing = (facing === 'user') ? 'environment' : 'user';
+    try {
+      const newStream = await navigator.mediaDevices.getUserMedia(buildConstraints());
+      const newTrack = newStream.getVideoTracks()[0];
+      // Replace track in the peer-connection sender
+      if (pc){
+        const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+        if (sender) await sender.replaceTrack(newTrack);
+      }
+      // Swap track on the local stream + element
+      const oldTrack = localStream.getVideoTracks()[0];
+      if (oldTrack){ localStream.removeTrack(oldTrack); oldTrack.stop(); }
+      localStream.addTrack(newTrack);
+      localV.srcObject = localStream;
+    } catch(e){
+      facing = (facing === 'user') ? 'environment' : 'user'; // revert
+      alert('Impossible de changer de caméra : ' + e.message);
+    }
+  }
+
+  function newPC(){
+    pc = new RTCPeerConnection({
+      iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }],
+    });
+    localStream.getTracks().forEach(tr => pc.addTrack(tr, localStream));
+    pc.ontrack = (e) => {
+      remoteV.srcObject = e.streams[0];
+      overlay.style.display = 'none';
+      setStatus('Connecté');
+    };
+    pc.onicecandidate = (e) => {
+      if (e.candidate){
+        socket.emit('call_signal', { peer_id: peerId, kind: 'ice', data: e.candidate });
+      }
+    };
+    pc.onconnectionstatechange = () => {
+      if (['failed','disconnected','closed'].includes(pc.connectionState)){
+        setStatus('Déconnecté');
+      }
+    };
+  }
+
+  async function startCaller(){
+    if (!await getMedia()) return;
+    newPC();
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    socket.emit('call_invite', { peer_id: peerId, mode });
+    socket.emit('call_signal', { peer_id: peerId, kind: 'offer', data: offer });
+    setStatus('En attente de réponse…');
+  }
+
+  async function startCallee(){
+    if (!await getMedia()) return;
+    newPC();
+    setStatus('Connexion…');
+  }
+
+  socket.on('connected', () => {
+    if (role === 'caller') startCaller();
+    else                   startCallee();
+  });
+
+  socket.on('call_signal', async (msg) => {
+    if (msg.from_user_id !== peerId) return;
+    if (!pc) return;
+    if (msg.kind === 'offer'){
+      await pc.setRemoteDescription(new RTCSessionDescription(msg.data));
+      remoteDescSet = true;
+      const ans = await pc.createAnswer();
+      await pc.setLocalDescription(ans);
+      socket.emit('call_signal', { peer_id: peerId, kind: 'answer', data: ans });
+      for (const c of pendingCandidates) await pc.addIceCandidate(c);
+      pendingCandidates = [];
+    } else if (msg.kind === 'answer'){
+      await pc.setRemoteDescription(new RTCSessionDescription(msg.data));
+      remoteDescSet = true;
+      for (const c of pendingCandidates) await pc.addIceCandidate(c);
+      pendingCandidates = [];
+    } else if (msg.kind === 'ice'){
+      const cand = new RTCIceCandidate(msg.data);
+      if (remoteDescSet) await pc.addIceCandidate(cand);
+      else pendingCandidates.push(cand);
+    } else if (msg.kind === 'end'){
+      hangup(false);
+    }
+  });
+
+  function hangup(notify){
+    if (notify) socket.emit('call_signal', { peer_id: peerId, kind: 'end' });
+    if (pc){ pc.close(); pc = null; }
+    if (localStream){ localStream.getTracks().forEach(t => t.stop()); }
+    setStatus('Appel terminé');
+    setTimeout(() => { window.location.href = '/chat/' + peerId; }, 800);
+  }
+
+  document.getElementById('btn-end').addEventListener('click', () => hangup(true));
+  document.getElementById('btn-mute').addEventListener('click', (e) => {
+    if (!localStream) return;
+    const tr = localStream.getAudioTracks()[0];
+    if (tr){ tr.enabled = !tr.enabled; e.currentTarget.classList.toggle('muted', !tr.enabled); }
+  });
+  const camBtn = document.getElementById('btn-cam');
+  if (camBtn){
+    camBtn.addEventListener('click', (e) => {
+      if (!localStream) return;
+      const tr = localStream.getVideoTracks()[0];
+      if (tr){ tr.enabled = !tr.enabled; e.currentTarget.classList.toggle('muted', !tr.enabled); }
+    });
+  }
+  const flipBtn = document.getElementById('btn-flip');
+  if (flipBtn) flipBtn.addEventListener('click', flipCamera);
+
+  /* ── Draggable Picture-in-Picture self-view ───────────────────────── */
+  (function makeDraggable(el){
+    if (!el) return;
+    let dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
+    function onDown(e){
+      dragging = true;
+      const p = (e.touches ? e.touches[0] : e);
+      sx = p.clientX; sy = p.clientY;
+      const r = el.getBoundingClientRect();
+      ox = r.left; oy = r.top;
+      el.style.transition = 'none';
+      el.style.cursor = 'grabbing';
+    }
+    function onMove(e){
+      if (!dragging) return;
+      e.preventDefault();
+      const p = (e.touches ? e.touches[0] : e);
+      const nx = Math.max(8, Math.min(window.innerWidth  - el.offsetWidth  - 8, ox + (p.clientX - sx)));
+      const ny = Math.max(8, Math.min(window.innerHeight - el.offsetHeight - 8, oy + (p.clientY - sy)));
+      el.style.left = nx + 'px';
+      el.style.top  = ny + 'px';
+      el.style.right = 'auto';
+      el.style.bottom = 'auto';
+    }
+    function onUp(){ dragging = false; el.style.cursor = 'grab'; }
+    el.addEventListener('mousedown',  onDown);
+    el.addEventListener('touchstart', onDown, { passive: true });
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('mouseup',   onUp);
+    window.addEventListener('touchend',  onUp);
+  })(localV);
+})();
+</script>
+{% endblock %}

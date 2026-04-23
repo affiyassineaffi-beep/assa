@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Choisir votre école{% endblock %}
+{% block content %}
+<div class="container narrow">
+  <header class="dm-page-head">
+    <h1>🏫 Quelle est votre école ?</h1>
+    <p class="muted">Sélectionnez votre établissement pour rejoindre la communauté.</p>
+  </header>
+
+  <section class="card glass" style="padding:18px">
+    <form method="post" class="form">
+      <label class="field">
+        <span>École / Lycée / Faculté</span>
+        <select name="school_name" id="school-select" required>
+          <option value="">— Choisir —</option>
+          {% for s in all_schools %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+        </select>
+      </label>
+      <button type="submit" class="btn btn-primary">Continuer</button>
+    </form>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}<script>new TomSelect('#school-select', { allowEmptyOption: true });</script>{% endblock %}
