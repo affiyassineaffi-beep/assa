@@ -109,6 +109,9 @@
 </head>
 <body class="{{ 'rtl' if is_rtl else 'ltr' }} {% if _ct %}has-custom-theme deco-{{ _ct.decoration or 'none' }}{% endif %}">
 
+<!-- Cinematic intro splash (once per session, self-gated) -->
+{% include "_intro_splash.html" %}
+
 <!-- NAVBAR -->
 <nav class="navbar">
   <div class="navbar-inner">

@@ -22,11 +22,22 @@
         </select>
       </label>
       <label class="field">
-        <span>Centre d'intérêt
-          <small class="muted">— ex. Nature, Cyberpunk, Fleurs (l'IA cherchera des images sur le web)</small>
+        <span>Esthétique préférée
+          <small class="muted">— ex. Cyberpunk Neon Blue, Minimalist Black, Modern Pastel</small>
         </span>
         <input type="text" name="interest" maxlength="80"
-               placeholder="Nature, Cyberpunk, Fleurs…"/>
+               list="aesthetic-suggestions-settings"
+               placeholder="Cyberpunk Neon Blue, Minimalist Black…"/>
+        <datalist id="aesthetic-suggestions-settings">
+          <option value="Cyberpunk Neon Blue"></option>
+          <option value="Minimalist Black"></option>
+          <option value="Modern Pastel"></option>
+          <option value="Dark Academia"></option>
+          <option value="Synthwave Sunset"></option>
+          <option value="Forest Green"></option>
+          <option value="Ocean Deep"></option>
+          <option value="Monochrome White"></option>
+        </datalist>
       </label>
       <label class="field">
         <span>Image d'inspiration (prioritaire si fournie)</span>
