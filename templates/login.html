@@ -25,6 +25,9 @@
       <button type="submit" class="btn btn-primary btn-full">{{ t('login') }}</button>
     </form>
 
+    <p class="auth-footer" style="margin-top:8px">
+      <a href="{{ url_for('forgot_password') }}">🔑 Mot de passe oublié ?</a>
+    </p>
     <p class="auth-footer">{{ t('no_account') }}<a href="{{ url_for('register') }}">{{ t('create_one') }}</a></p>
   </div>
 </div>

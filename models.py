@@ -26,6 +26,8 @@ class Student(db.Model):
     phone_verified = db.Column(db.Integer, nullable=False, default=0)
     phone_otp = db.Column(db.String(8), nullable=True)
     phone_otp_expires = db.Column(db.DateTime, nullable=True)
+    password_reset_token = db.Column(db.String(80), nullable=True, index=True)
+    password_reset_expires = db.Column(db.DateTime, nullable=True)
 
     educational_level = db.Column(db.String(60), nullable=True)
     section = db.Column(db.String(60), nullable=True)

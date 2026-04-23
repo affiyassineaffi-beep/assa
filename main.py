@@ -342,6 +342,41 @@ def send_verification_email(student: Student) -> bool:
     return _send_email(student.email, subject, html, text)
 
 
+def send_password_reset_email(student: Student) -> bool:
+    """Send the password-reset link via real SMTP. Returns True on success."""
+    if not student.email or not student.password_reset_token:
+        return False
+    try:
+        host = request.host_url.rstrip("/")
+    except RuntimeError:
+        host = (os.environ.get("REPLIT_DEV_DOMAIN") or "http://localhost:5000")
+        if not host.startswith("http"):
+            host = "https://" + host
+    link = f"{host}/reset-password/{student.password_reset_token}"
+    subject = "Réinitialisation du mot de passe — Plateforme Académique"
+    html = f"""
+      <div style="font-family:Cairo,system-ui,sans-serif;max-width:480px;margin:0 auto;
+                  background:#0a0a0f;color:#fafafa;padding:32px;border-radius:16px">
+        <h1 style="margin:0 0 12px">Salut {student.username} 👋</h1>
+        <p style="color:#cbd5e1;line-height:1.6">
+          Tu as demandé à réinitialiser ton mot de passe. Ce lien est
+          valable 1&nbsp;heure et ne peut être utilisé qu'une seule fois.
+          Si tu n'es pas à l'origine de la demande, ignore cet email.
+        </p>
+        <p style="text-align:center;margin:28px 0">
+          <a href="{link}"
+             style="background:linear-gradient(135deg,#7c5cff,#38bdf8);color:#fff;
+                    text-decoration:none;padding:14px 28px;border-radius:999px;
+                    font-weight:700;display:inline-block">Choisir un nouveau mot de passe</a>
+        </p>
+        <p style="color:#94a3b8;font-size:.85rem;word-break:break-all">
+          Ou colle ce lien dans ton navigateur :<br>{link}
+        </p>
+      </div>"""
+    text = f"Réinitialise ton mot de passe : {link}"
+    return _send_email(student.email, subject, html, text)
+
+
 def send_phone_otp(student: Student) -> str:
     """Generate a 6-digit OTP, store it on the student, and 'send' it via SMS.
 
@@ -499,6 +534,8 @@ def _ensure_schema():
             ("phone_otp_expires",  "ALTER TABLE students ADD COLUMN phone_otp_expires DATETIME"),
             ("gender",             "ALTER TABLE students ADD COLUMN gender VARCHAR(16)"),
             ("custom_theme",       "ALTER TABLE students ADD COLUMN custom_theme TEXT"),
+            ("password_reset_token",   "ALTER TABLE students ADD COLUMN password_reset_token VARCHAR(80)"),
+            ("password_reset_expires", "ALTER TABLE students ADD COLUMN password_reset_expires DATETIME"),
         ]:
             if col not in scols:
                 db.session.execute(text(ddl))
@@ -596,7 +633,12 @@ def register():
         if gender not in {"female", "male", "other"}:
             gender = "other"
 
-        # Optional photo upload → AI-generated personal theme
+        # AI-generated personal theme:
+        #   1) If a photo was uploaded, analyze it directly.
+        #   2) Else, if an "interest" was provided, web-search inspiration
+        #      images and let Gemini design a theme from them.
+        #   3) Else, use the gender default.
+        interest = (request.form.get("interest") or "").strip()
         theme_obj = dict(DEFAULT_THEMES.get(gender, DEFAULT_THEMES["other"]))
         photo = request.files.get("theme_photo")
         if photo and photo.filename:
@@ -607,6 +649,11 @@ def register():
                     theme_obj = generate_theme_from_image(img_bytes, mime, gender)
             except Exception as exc:
                 print(f"[theme] upload failed: {exc}", flush=True)
+        elif interest:
+            try:
+                theme_obj = generate_theme_from_interest(interest, gender)
+            except Exception as exc:
+                print(f"[theme] interest gen failed: {exc}", flush=True)
 
         student = Student(
             username=username, email=email,
@@ -674,6 +721,57 @@ def verify_email(token: str):
     save_session(student)
     flash("Email vérifié ! Bienvenue 🎉", "success")
     return redirect(url_for("dashboard"))
+
+
+# ─── Password Reset (Forgot Password) ────────────────────────────────────────
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    sent = False
+    email = ""
+    if request.method == "POST":
+        email = (request.form.get("email") or "").strip().lower()
+        if email and "@" in email:
+            student = Student.query.filter_by(email=email).first()
+            if student:
+                student.password_reset_token = secrets.token_urlsafe(32)
+                student.password_reset_expires = datetime.utcnow() + timedelta(hours=1)
+                db.session.commit()
+                # Best-effort send. We never reveal whether the email exists.
+                try:
+                    send_password_reset_email(student)
+                except Exception as exc:
+                    print(f"[reset] email send failed: {exc}", flush=True)
+            sent = True
+    return render_template("forgot_password.html", sent=sent, email=email)
+
+
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token: str):
+    student = Student.query.filter_by(password_reset_token=token).first()
+    valid = bool(student and student.password_reset_expires
+                 and student.password_reset_expires > datetime.utcnow())
+    if not valid:
+        flash("Lien de réinitialisation invalide ou expiré.", "error")
+        return redirect(url_for("forgot_password"))
+
+    if request.method == "POST":
+        new_pw = request.form.get("password", "")
+        confirm = request.form.get("confirm", "")
+        if len(new_pw) < 4:
+            flash(t("err_password_short"), "error")
+        elif new_pw != confirm:
+            flash("Les deux mots de passe ne correspondent pas.", "error")
+        else:
+            student.password_hash = generate_password_hash(new_pw)
+            student.password_reset_token = None
+            student.password_reset_expires = None
+            # A successful reset implicitly verifies the email
+            student.email_verified = 1
+            student.is_active = 1
+            db.session.commit()
+            flash("Mot de passe mis à jour. Tu peux te connecter.", "success")
+            return redirect(url_for("login"))
+    return render_template("reset_password.html", token=token)
 
 
 @app.route("/verify-email/resend", methods=["POST"])
@@ -1454,6 +1552,79 @@ def _normalize_theme(raw: dict, gender: str) -> dict:
     return out
 
 
+def _fetch_web_images(query: str, count: int = 3) -> list[tuple[bytes, str]]:
+    """Fetch a few inspiration images for the user's interest from free image
+    services. Returns a list of (bytes, mime_type) — empty list on failure.
+
+    Tries loremflickr.com (Flickr CC-licensed photos). No API key required.
+    """
+    out: list[tuple[bytes, str]] = []
+    if not query:
+        return out
+    q = re.sub(r"[^A-Za-z0-9, ]", "", query).strip().replace(" ", ",") or "abstract"
+    sources = [
+        f"https://loremflickr.com/600/400/{q}?lock={i}" for i in range(1, count + 1)
+    ]
+    for url in sources:
+        try:
+            r = requests.get(url, timeout=8, allow_redirects=True,
+                             headers={"User-Agent": "SSAS-Theme/1.0"})
+            if r.status_code == 200 and r.content and len(r.content) > 1024:
+                ctype = r.headers.get("Content-Type", "image/jpeg").split(";")[0].strip()
+                if ctype.startswith("image/"):
+                    out.append((r.content, ctype))
+        except Exception as exc:
+            print(f"[theme] web image fetch failed for {url}: {exc}", flush=True)
+    return out
+
+
+def generate_theme_from_interest(interest: str, gender: str) -> dict:
+    """AI-enhanced theme: search the web for images matching the user's interest,
+    feed them to Gemini Vision, and return a custom theme.
+
+    Falls back to gender defaults if web fetch or Gemini fails.
+    """
+    base = DEFAULT_THEMES.get(gender, DEFAULT_THEMES["other"])
+    interest = (interest or "").strip()
+    if not interest:
+        return dict(base)
+
+    images = _fetch_web_images(interest, count=3)
+    if not images or not _gemini_ready():
+        return dict(base)
+
+    deco_hint = ("hearts, butterflies, floral or stars" if gender == "female"
+                 else "grid, geometric or waves" if gender == "male"
+                 else "any tasteful decoration")
+    prompt = (
+        f"The user (gender: {gender or 'unspecified'}) is interested in: "
+        f"\"{interest}\". Analyze the mood, dominant colors and aesthetic of "
+        "the attached inspiration images and design ONE cohesive UI color "
+        "theme that captures that vibe. Prefer decorations like " + deco_hint
+        + ". Return ONLY a compact JSON object (no markdown, no comments) "
+        'with exactly these keys: {"primary":"#hex","accent":"#hex",'
+        '"bg":"#hex","surface":"#hex","text":"#hex","muted":"#hex",'
+        '"decoration":"<one of: hearts, butterflies, floral, grid, waves, '
+        'stars, geometric, none>"}. Use 6-digit hex colors. Ensure text is '
+        "readable on bg/surface."
+    )
+    try:
+        model = genai.GenerativeModel(GEMINI_MODEL)
+        parts: list = [prompt]
+        for img_bytes, mime in images:
+            parts.append({"mime_type": mime, "data": img_bytes})
+        resp = model.generate_content(parts)
+        txt = (getattr(resp, "text", "") or "").strip()
+        txt = re.sub(r"^```(?:json)?|```$", "", txt, flags=re.MULTILINE).strip()
+        data = _json.loads(txt)
+        if not isinstance(data, dict):
+            raise ValueError("not a dict")
+        return _normalize_theme(data, gender)
+    except Exception as exc:
+        print(f"[theme] interest-based generation failed: {exc}", flush=True)
+        return dict(base)
+
+
 def generate_theme_from_image(image_bytes: bytes, mime_type: str,
                               gender: str) -> dict:
     """Use Gemini Vision to extract a custom theme from a user-uploaded image.
@@ -1792,22 +1963,26 @@ def settings_page():
             db.session.commit()
             flash(t("success_profile"), "success")
         elif action == "regen_theme":
-            # Regenerate the AI personal theme from a freshly uploaded image
+            # Regenerate the AI personal theme from a fresh photo OR from an
+            # interest keyword (which triggers a web image search + analysis)
             new_gender = (request.form.get("gender") or student.gender or "other").lower()
             if new_gender not in {"female", "male", "other"}:
                 new_gender = "other"
             student.gender = new_gender
+            interest = (request.form.get("interest") or "").strip()
             photo = request.files.get("theme_photo")
             theme_obj = dict(DEFAULT_THEMES.get(new_gender, DEFAULT_THEMES["other"]))
-            if photo and photo.filename:
-                try:
+            try:
+                if photo and photo.filename:
                     img_bytes = photo.read()
                     if img_bytes:
                         mime = photo.mimetype or "image/jpeg"
                         theme_obj = generate_theme_from_image(img_bytes, mime, new_gender)
-                except Exception as exc:
-                    print(f"[theme] regen failed: {exc}", flush=True)
-                    flash("Analyse de l'image impossible — thème par défaut appliqué.", "error")
+                elif interest:
+                    theme_obj = generate_theme_from_interest(interest, new_gender)
+            except Exception as exc:
+                print(f"[theme] regen failed: {exc}", flush=True)
+                flash("Analyse impossible — thème par défaut appliqué.", "error")
             student.custom_theme = _json.dumps(theme_obj)
             db.session.commit()
             flash("✨ Thème personnel mis à jour.", "success")

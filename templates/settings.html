@@ -22,10 +22,17 @@
         </select>
       </label>
       <label class="field">
-        <span>Image d'inspiration</span>
+        <span>Centre d'intérêt
+          <small class="muted">— ex. Nature, Cyberpunk, Fleurs (l'IA cherchera des images sur le web)</small>
+        </span>
+        <input type="text" name="interest" maxlength="80"
+               placeholder="Nature, Cyberpunk, Fleurs…"/>
+      </label>
+      <label class="field">
+        <span>Image d'inspiration (prioritaire si fournie)</span>
         <input type="file" name="theme_photo" accept="image/*"/>
       </label>
-      <button type="submit" class="btn btn-primary">Générer mon thème</button>
+      <button type="submit" class="btn btn-primary">✨ Générer mon thème</button>
     </form>
   </section>
 
