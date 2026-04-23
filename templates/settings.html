@@ -7,6 +7,28 @@
     <p class="muted">Personnalisez votre expérience SSAS.</p>
   </header>
 
+  <!-- AI personal theme -->
+  <section class="card glass" style="padding:18px;margin-bottom:16px">
+    <h2 style="margin-top:0">✨ Thème personnel (IA)</h2>
+    <p class="muted">Téléverse une photo d'inspiration : l'IA en extraira tes couleurs et un motif (cœurs, papillons, floral, grille…).</p>
+    <form method="post" enctype="multipart/form-data" class="form">
+      <input type="hidden" name="action" value="regen_theme"/>
+      <label class="field">
+        <span>Genre</span>
+        <select name="gender">
+          <option value="female" {% if student.gender == 'female' %}selected{% endif %}>Féminin</option>
+          <option value="male"   {% if student.gender == 'male'   %}selected{% endif %}>Masculin</option>
+          <option value="other"  {% if not student.gender or student.gender == 'other' %}selected{% endif %}>Autre</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Image d'inspiration</span>
+        <input type="file" name="theme_photo" accept="image/*"/>
+      </label>
+      <button type="submit" class="btn btn-primary">Générer mon thème</button>
+    </form>
+  </section>
+
   <!-- Appearance -->
   <section class="card glass" style="padding:18px;margin-bottom:16px">
     <h2 style="margin-top:0">🎨 Apparence & langue</h2>

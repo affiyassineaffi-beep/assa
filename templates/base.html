@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="{{ 'ar' if is_rtl else 'fr' }}" dir="{{ 'rtl' if is_rtl else 'ltr' }}" data-theme="{{ theme }}">
+{% set _ct = (current_student.custom_theme | from_json) if current_student and current_student.custom_theme else None %}
+<html lang="{{ lang }}" dir="{{ 'rtl' if is_rtl else 'ltr' }}" data-theme="{{ 'custom' if _ct else theme }}">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
@@ -22,8 +23,91 @@
 
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}"/>
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}"/>
+
+  {# ── AI-generated personal theme (CSS variables) ── #}
+  {% if current_student and current_student.custom_theme %}
+    {% set ct = current_student.custom_theme | from_json %}
+    {% if ct %}
+    <style>
+      :root[data-theme="custom"]{
+        --ct-primary: {{ ct.primary }};
+        --ct-accent:  {{ ct.accent }};
+        --ct-bg:      {{ ct.bg }};
+        --ct-surface: {{ ct.surface }};
+        --ct-text:    {{ ct.text }};
+        --ct-muted:   {{ ct.muted }};
+      }
+      body.has-custom-theme{
+        background: var(--ct-bg) !important;
+        color: var(--ct-text) !important;
+      }
+      body.has-custom-theme .glass,
+      body.has-custom-theme .card,
+      body.has-custom-theme .auth-card,
+      body.has-custom-theme .hero-card{
+        background: color-mix(in srgb, var(--ct-surface) 88%, transparent) !important;
+        color: var(--ct-text) !important;
+      }
+      body.has-custom-theme .btn-primary,
+      body.has-custom-theme .ssas-play-btn{
+        background: linear-gradient(135deg, var(--ct-primary), var(--ct-accent)) !important;
+        color: #fff !important; border: none !important;
+      }
+      body.has-custom-theme a{ color: var(--ct-primary); }
+      body.has-custom-theme .chat-bubble.mine{
+        background: linear-gradient(135deg, var(--ct-primary), var(--ct-accent)) !important;
+        color: #fff !important;
+      }
+      /* Decorative overlay (themed pattern) */
+      body.has-custom-theme::before{
+        content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+        opacity:.10; background-repeat:repeat;
+      }
+      body.has-custom-theme.deco-hearts::before{
+        background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='36'><path d='M20 30 L4 16 a7 7 0 0 1 16-8 a7 7 0 0 1 16 8 z' fill='{{ ct.primary | replace('#', '%23') }}'/></svg>");
+        background-size:60px;
+      }
+      body.has-custom-theme.deco-butterflies::before{
+        background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='40'><path d='M24 20 C12 6 4 14 8 22 C12 30 22 28 24 24 C26 28 36 30 40 22 C44 14 36 6 24 20 Z' fill='{{ ct.accent | replace('#', '%23') }}'/></svg>");
+        background-size:72px;
+      }
+      body.has-custom-theme.deco-floral::before{
+        background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'><circle cx='22' cy='22' r='4' fill='{{ ct.primary | replace('#', '%23') }}'/><circle cx='22' cy='10' r='6' fill='{{ ct.accent | replace('#', '%23') }}' opacity='.7'/><circle cx='22' cy='34' r='6' fill='{{ ct.accent | replace('#', '%23') }}' opacity='.7'/><circle cx='10' cy='22' r='6' fill='{{ ct.accent | replace('#', '%23') }}' opacity='.7'/><circle cx='34' cy='22' r='6' fill='{{ ct.accent | replace('#', '%23') }}' opacity='.7'/></svg>");
+        background-size:64px;
+      }
+      body.has-custom-theme.deco-stars::before{
+        background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><path d='M20 4 l4 12 12 0 -10 8 4 12 -10 -7 -10 7 4 -12 -10 -8 12 0 z' fill='{{ ct.accent | replace('#', '%23') }}'/></svg>");
+        background-size:56px;
+      }
+      body.has-custom-theme.deco-grid::before{
+        background-image:linear-gradient({{ ct.accent }}33 1px, transparent 1px),
+                         linear-gradient(90deg, {{ ct.accent }}33 1px, transparent 1px);
+        background-size:32px 32px;
+      }
+      body.has-custom-theme.deco-waves::before{
+        background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='20'><path d='M0 10 Q20 0 40 10 T80 10' stroke='{{ ct.accent | replace('#', '%23') }}' fill='none' stroke-width='2'/></svg>");
+        background-size:80px 20px;
+      }
+      body.has-custom-theme.deco-geometric::before{
+        background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><polygon points='20,4 36,20 20,36 4,20' fill='none' stroke='{{ ct.accent | replace('#', '%23') }}' stroke-width='1.5'/></svg>");
+        background-size:48px;
+      }
+      body.has-custom-theme > *{ position:relative; z-index:1; }
+    </style>
+    {% endif %}
+  {% endif %}
+
+  {# ── Smooth page transitions for everyone ── #}
+  <style>
+    @view-transition { navigation: auto; }
+    ::view-transition-old(root){ animation: ssas-fade-out .22s ease both; }
+    ::view-transition-new(root){ animation: ssas-fade-in  .28s cubic-bezier(.2,.7,.2,1) both; }
+    @keyframes ssas-fade-out{ to { opacity:0; transform: translateY(-4px); } }
+    @keyframes ssas-fade-in { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+    main, .container { animation: ssas-fade-in .28s cubic-bezier(.2,.7,.2,1) both; }
+  </style>
 </head>
-<body class="{{ 'rtl' if is_rtl else 'ltr' }}">
+<body class="{{ 'rtl' if is_rtl else 'ltr' }} {% if _ct %}has-custom-theme deco-{{ _ct.decoration or 'none' }}{% endif %}">
 
 <!-- NAVBAR -->
 <nav class="navbar">
@@ -47,12 +131,15 @@
       {% endif %}
       <button id="pwa-install-btn" class="btn btn-ghost btn-sm" hidden
               title="Installer l'application">⬇️ <span class="hide-sm">Installer</span></button>
+      {% set FLAGS = {'fr':'🇫🇷','ar':'🇹🇳','en':'🇬🇧','es':'🇪🇸','de':'🇩🇪',
+                       'it':'🇮🇹','pt':'🇵🇹','tr':'🇹🇷','ru':'🇷🇺','zh':'🇨🇳',
+                       'ja':'🇯🇵','hi':'🇮🇳'} %}
       <select id="lang-picker" class="lang-picker"
               aria-label="{{ t('language') }}"
               onchange="window.location.href='{{ url_for('set_lang', lang='__L__') }}'.replace('__L__', this.value)">
         {% for code, info in LANGUAGES.items() %}
           <option value="{{ code }}" {% if code == lang %}selected{% endif %}>
-            {{ info[1] }}
+            {{ FLAGS.get(code, '🏳️') }} {{ info[1] }}
           </option>
         {% endfor %}
       </select>

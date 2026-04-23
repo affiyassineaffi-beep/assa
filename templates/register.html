@@ -13,7 +13,7 @@
 
     <div class="divider"><span>{{ t('or_create_email') }}</span></div>
 
-    <form method="post" class="form grid-2">
+    <form method="post" class="form grid-2" enctype="multipart/form-data">
       <!-- Row 1 -->
       <label class="field">
         <span>{{ t('full_name') }}</span>
@@ -77,6 +77,23 @@
           <option value="">{{ t('select_class') }}</option>
         </select>
       </label>
+      <!-- Row 6 — Gender + AI theme photo -->
+      <label class="field">
+        <span>Genre</span>
+        <select name="gender" required>
+          <option value="">— Choisir —</option>
+          <option value="female">Féminin</option>
+          <option value="male">Masculin</option>
+          <option value="other">Autre</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Photo d'inspiration (optionnel)
+          <small class="muted">— l'IA en tirera ton thème personnalisé</small>
+        </span>
+        <input type="file" name="theme_photo" accept="image/*"/>
+      </label>
+
       <button type="submit" class="btn btn-primary btn-full span-2">{{ t('register') }}</button>
     </form>
 

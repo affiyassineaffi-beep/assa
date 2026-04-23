@@ -16,6 +16,8 @@ class Student(db.Model):
     google_id = db.Column(db.String(200), unique=True, nullable=True)
     auth_provider = db.Column(db.String(32), nullable=False, default="password")
     phone = db.Column(db.String(30), nullable=True)
+    gender = db.Column(db.String(16), nullable=True)        # 'female' | 'male' | 'other'
+    custom_theme = db.Column(db.Text, nullable=True)        # JSON: AI-generated theme tokens
 
     # Account activation & verification
     is_active = db.Column(db.Integer, nullable=False, default=0)

@@ -429,6 +429,17 @@ def validate_profile_form(form) -> tuple[dict | None, str | None]:
 
 
 # ─── Template context ─────────────────────────────────────────────────────────
+@app.template_filter("from_json")
+def _jinja_from_json(s):
+    """Parse a JSON string in templates. Returns None on failure."""
+    if not s:
+        return None
+    try:
+        return _json.loads(s)
+    except Exception:
+        return None
+
+
 @app.context_processor
 def global_context():
     student = current_student()
@@ -486,6 +497,8 @@ def _ensure_schema():
             ("phone_verified",     "ALTER TABLE students ADD COLUMN phone_verified INTEGER DEFAULT 0"),
             ("phone_otp",          "ALTER TABLE students ADD COLUMN phone_otp VARCHAR(8)"),
             ("phone_otp_expires",  "ALTER TABLE students ADD COLUMN phone_otp_expires DATETIME"),
+            ("gender",             "ALTER TABLE students ADD COLUMN gender VARCHAR(16)"),
+            ("custom_theme",       "ALTER TABLE students ADD COLUMN custom_theme TEXT"),
         ]:
             if col not in scols:
                 db.session.execute(text(ddl))
@@ -579,6 +592,22 @@ def register():
             flash(t("err_email_taken"), "error")
             return render_template("register.html", **ctx)
 
+        gender = (request.form.get("gender") or "").strip().lower()
+        if gender not in {"female", "male", "other"}:
+            gender = "other"
+
+        # Optional photo upload → AI-generated personal theme
+        theme_obj = dict(DEFAULT_THEMES.get(gender, DEFAULT_THEMES["other"]))
+        photo = request.files.get("theme_photo")
+        if photo and photo.filename:
+            try:
+                img_bytes = photo.read()
+                if img_bytes:
+                    mime = photo.mimetype or "image/jpeg"
+                    theme_obj = generate_theme_from_image(img_bytes, mime, gender)
+            except Exception as exc:
+                print(f"[theme] upload failed: {exc}", flush=True)
+
         student = Student(
             username=username, email=email,
             password_hash=generate_password_hash(password),
@@ -586,6 +615,8 @@ def register():
             profile_completed=1, **profile,
             is_active=0, email_verified=0,
             email_verify_token=secrets.token_urlsafe(32),
+            gender=gender,
+            custom_theme=_json.dumps(theme_obj),
         )
         db.session.add(student)
         db.session.commit()
@@ -1362,6 +1393,109 @@ def player_quick_add():
     return jsonify({"track": track.to_dict(), "duplicate": False})
 
 
+# ─── AI-generated personal themes ───────────────────────────────────────────
+DEFAULT_THEMES = {
+    "female": {
+        "primary":   "#ff5fa2",
+        "accent":    "#ffb1d8",
+        "bg":        "#fff5fa",
+        "surface":   "#ffffff",
+        "text":      "#3a1d2c",
+        "muted":     "#8a5d72",
+        "decoration":"hearts",
+    },
+    "male": {
+        "primary":   "#3b82f6",
+        "accent":    "#22d3ee",
+        "bg":        "#0b1220",
+        "surface":   "#111a2e",
+        "text":      "#e6edf7",
+        "muted":     "#8aa0c2",
+        "decoration":"grid",
+    },
+    "other": {
+        "primary":   "#7c5cff",
+        "accent":    "#38bdf8",
+        "bg":        "#0a0a0f",
+        "surface":   "#15151f",
+        "text":      "#fafafa",
+        "muted":     "#9aa0aa",
+        "decoration":"none",
+    },
+}
+
+DECORATIONS = {"hearts", "butterflies", "floral", "grid", "waves", "stars",
+               "geometric", "none"}
+
+
+def _safe_hex(s: str, fallback: str) -> str:
+    """Coerce arbitrary AI output into a valid 6-digit #hex color."""
+    s = (s or "").strip()
+    if re.fullmatch(r"#?[0-9a-fA-F]{6}", s):
+        return "#" + s.lstrip("#").lower()
+    if re.fullmatch(r"#?[0-9a-fA-F]{3}", s):
+        h = s.lstrip("#").lower()
+        return "#" + "".join(c * 2 for c in h)
+    return fallback
+
+
+def _normalize_theme(raw: dict, gender: str) -> dict:
+    base = DEFAULT_THEMES.get(gender, DEFAULT_THEMES["other"])
+    out = {
+        "primary":  _safe_hex(raw.get("primary", ""),  base["primary"]),
+        "accent":   _safe_hex(raw.get("accent", ""),   base["accent"]),
+        "bg":       _safe_hex(raw.get("bg", ""),       base["bg"]),
+        "surface":  _safe_hex(raw.get("surface", ""),  base["surface"]),
+        "text":     _safe_hex(raw.get("text", ""),     base["text"]),
+        "muted":    _safe_hex(raw.get("muted", ""),    base["muted"]),
+    }
+    deco = (raw.get("decoration") or "").lower().strip()
+    out["decoration"] = deco if deco in DECORATIONS else base["decoration"]
+    return out
+
+
+def generate_theme_from_image(image_bytes: bytes, mime_type: str,
+                              gender: str) -> dict:
+    """Use Gemini Vision to extract a custom theme from a user-uploaded image.
+
+    Falls back to a gender-based default theme if Gemini is unavailable
+    or returns invalid data.
+    """
+    base = DEFAULT_THEMES.get(gender, DEFAULT_THEMES["other"])
+    if not _gemini_ready() or not image_bytes:
+        return dict(base)
+
+    deco_hint = ("hearts, butterflies, floral or stars" if gender == "female"
+                 else "grid, geometric or waves" if gender == "male"
+                 else "any tasteful decoration")
+    prompt = (
+        "Analyze this image and propose a UI color theme that matches its "
+        "mood and dominant colors. The user's gender is "
+        f"'{gender or 'unspecified'}'. Prefer decorations like " + deco_hint
+        + ". Return ONLY a compact JSON object with exactly these keys "
+        '(no markdown): {"primary":"#hex","accent":"#hex","bg":"#hex",'
+        '"surface":"#hex","text":"#hex","muted":"#hex","decoration":"<one '
+        'of: hearts, butterflies, floral, grid, waves, stars, geometric, none>"}. '
+        "Use 6-digit hex colors. Make sure text is readable on bg/surface."
+    )
+    try:
+        model = genai.GenerativeModel(GEMINI_MODEL)
+        resp = model.generate_content([
+            prompt,
+            {"mime_type": mime_type or "image/jpeg", "data": image_bytes},
+        ])
+        txt = (getattr(resp, "text", "") or "").strip()
+        # Strip ```json fences if present
+        txt = re.sub(r"^```(?:json)?|```$", "", txt, flags=re.MULTILINE).strip()
+        data = _json.loads(txt)
+        if not isinstance(data, dict):
+            raise ValueError("not a dict")
+        return _normalize_theme(data, gender)
+    except Exception as exc:
+        print(f"[theme] Gemini analysis failed: {exc}", flush=True)
+        return dict(base)
+
+
 # ─── Gemini AI Companion ─────────────────────────────────────────────────────
 GEMINI_MODEL = "gemini-2.0-flash"
 AI_HISTORY_KEY = "ai_history"
@@ -1657,6 +1791,26 @@ def settings_page():
                     setattr(student, field, val)
             db.session.commit()
             flash(t("success_profile"), "success")
+        elif action == "regen_theme":
+            # Regenerate the AI personal theme from a freshly uploaded image
+            new_gender = (request.form.get("gender") or student.gender or "other").lower()
+            if new_gender not in {"female", "male", "other"}:
+                new_gender = "other"
+            student.gender = new_gender
+            photo = request.files.get("theme_photo")
+            theme_obj = dict(DEFAULT_THEMES.get(new_gender, DEFAULT_THEMES["other"]))
+            if photo and photo.filename:
+                try:
+                    img_bytes = photo.read()
+                    if img_bytes:
+                        mime = photo.mimetype or "image/jpeg"
+                        theme_obj = generate_theme_from_image(img_bytes, mime, new_gender)
+                except Exception as exc:
+                    print(f"[theme] regen failed: {exc}", flush=True)
+                    flash("Analyse de l'image impossible — thème par défaut appliqué.", "error")
+            student.custom_theme = _json.dumps(theme_obj)
+            db.session.commit()
+            flash("✨ Thème personnel mis à jour.", "success")
         elif action == "logout_all":
             # Best-effort: bump the secret key would invalidate ALL sessions. We just clear ours.
             session.clear()
