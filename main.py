@@ -267,13 +267,12 @@ def _send_email(to_addr: str, subject: str, html_body: str,
       SMTP_HOST, SMTP_PORT (default 587), SMTP_USER, SMTP_PASSWORD,
       SMTP_FROM (defaults to SMTP_USER), SMTP_FROM_NAME (optional),
       SMTP_USE_SSL ("1" for SMTPS / port 465).
-    Falls back to a console log when SMTP is not configured.
+    Returns False if SMTP is not configured — the caller MUST handle this
+    case (we never log verification links to the console for security).
     """
     if not _smtp_configured():
-        print(f"\n[email-fallback] (no SMTP env vars set)\n"
-              f"  TO:      {to_addr}\n"
-              f"  SUBJECT: {subject}\n"
-              f"  BODY:    {text_body or html_body}\n", flush=True)
+        print("[email-error] SMTP_HOST/SMTP_USER/SMTP_PASSWORD not set — "
+              "email NOT sent.", flush=True)
         return False
 
     host = os.environ["SMTP_HOST"]
@@ -309,10 +308,10 @@ def _send_email(to_addr: str, subject: str, html_body: str,
         return False
 
 
-def send_verification_email(student: Student) -> None:
-    """Send the activation link by real SMTP, with a console fallback."""
+def send_verification_email(student: Student) -> bool:
+    """Send the activation link via real SMTP. Returns True on success."""
     if not student.email or not student.email_verify_token:
-        return
+        return False
     try:
         host = request.host_url.rstrip("/")
     except RuntimeError:
@@ -340,7 +339,7 @@ def send_verification_email(student: Student) -> None:
         </p>
       </div>"""
     text = f"Bienvenue {student.username}! Active ton compte : {link}"
-    _send_email(student.email, subject, html, text)
+    return _send_email(student.email, subject, html, text)
 
 
 def send_phone_otp(student: Student) -> str:
@@ -590,7 +589,14 @@ def register():
         )
         db.session.add(student)
         db.session.commit()
-        send_verification_email(student)
+        if not send_verification_email(student):
+            # Roll back: delete the just-created account so the user can retry
+            db.session.delete(student)
+            db.session.commit()
+            flash("Impossible d'envoyer l'email de vérification pour le moment. "
+                  "Réessaie dans quelques instants ou contacte le support.",
+                  "error")
+            return render_template("register.html", **ctx)
         flash("Compte créé. Vérifie ton email pour activer ton compte.", "success")
         return redirect(url_for("verify_pending", email=email))
 
@@ -647,8 +653,11 @@ def verify_email_resend():
         if not student.email_verify_token:
             student.email_verify_token = secrets.token_urlsafe(32)
             db.session.commit()
-        send_verification_email(student)
-        flash("Lien de vérification renvoyé.", "success")
+        if send_verification_email(student):
+            flash("Lien de vérification renvoyé.", "success")
+        else:
+            flash("Impossible d'envoyer l'email pour le moment. Réessaie plus tard.",
+                  "error")
     else:
         flash("Aucun compte non vérifié pour cet email.", "error")
     return redirect(url_for("verify_pending", email=email))

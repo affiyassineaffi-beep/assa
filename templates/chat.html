@@ -53,6 +53,13 @@
   </div>
 
   <form class="chat-composer glass" id="chat-form" autocomplete="off">
+    <button type="button" id="chat-listen-together" class="chat-send chat-listen-btn"
+            title="Écouter ensemble" aria-label="Écouter ensemble">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+        <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+      </svg>
+    </button>
     <input type="text" id="chat-input" placeholder="Écrire un message…" maxlength="2000"/>
     <button type="submit" class="chat-send" aria-label="Envoyer">➤</button>
   </form>
@@ -163,6 +170,23 @@
   socket.on('connected', () => {
     socket.emit('mark_seen', { peer_id: peerId });
   });
+
+  // ── Listen Together: host a sync session and post the join link ──
+  const listenBtn = document.getElementById('chat-listen-together');
+  if (listenBtn){
+    listenBtn.addEventListener('click', () => {
+      if (!window.SSASPlayer || !window.SSASPlayer.startSyncHost){
+        alert("Lecteur indisponible. Ouvre une piste depuis le lecteur d'abord.");
+        return;
+      }
+      window.SSASPlayer.startSyncHost();
+      const link = location.origin + '/player?sync={{ student.id }}';
+      const body = "🎧 Écoute avec moi : " + link;
+      const optimistic = renderBubble({ body }, true, true);
+      stream.appendChild(optimistic); scrollDown();
+      socket.emit('send_message', { peer_id: peerId, body });
+    });
+  }
 })();
 </script>
 {% endblock %}
