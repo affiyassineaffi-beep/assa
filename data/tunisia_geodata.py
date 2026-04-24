@@ -143,581 +143,198 @@ def delegations_for_governorate(gov: str) -> list[str]:
 
 
 # ── Lycées (Secondary Schools) by Delegation ────────────────────────────────
-# Format: { delegation_name: [school_name, ...] }
+# Conservative, curated list — only lycées we have reasonable confidence
+# really exist.  Each delegation ships at most the well-known landmark
+# school(s); for everything else, the user types the school name freely
+# in the registration / settings forms.  This list is intentionally short
+# to avoid surfacing fabricated/invented school names.
 LYCEES_BY_DELEGATION: dict[str, list[str]] = {
     # ── Tunis ────────────────────────────────────────────────────────────────
-    "Jebel Jelloud": [
-        "Lycée Jebel Jelloud",
-        "Lycée Habib Thameur",
-        "Lycée Ibn Khaldoun — Jebel Jelloud",
-        "Lycée Ibn Sina — Jebel Jelloud",
-    ],
-    "Bab Bhar": [
-        "Lycée Carnot",
-        "Collège Sadiki",
-        "Lycée Habib Bourguiba de Tunis",
-        "Lycée 9 Avril 1938",
-    ],
-    "Médina": [
-        "Lycée Khaznadar",
-        "Lycée Al-Manar",
-        "Lycée de la Médina",
-    ],
-    "La Marsa": [
-        "Lycée La Marsa",
-        "Lycée Marsa Plage",
-        "Lycée La Marsa 2",
-    ],
-    "Le Bardo": [
-        "Lycée du Bardo",
-        "Lycée Habib Bourguiba du Bardo",
-        "Lycée 25 Juillet — Bardo",
-    ],
-    "Carthage": [
-        "Lycée de Carthage",
-        "Lycée Hannibal — Carthage",
-    ],
-    "La Goulette": [
-        "Lycée de La Goulette",
-        "Lycée Ibn Rachiq — La Goulette",
-    ],
-    "El Kabaria": [
-        "Lycée El Kabaria",
-        "Lycée Ibn Sina — El Kabaria",
-        "Lycée 7 Novembre — El Kabaria",
-    ],
-    "Sijoumi": [
-        "Lycée Sijoumi",
-        "Lycée Fattouma Bourguiba — Sijoumi",
-    ],
-    "Ettahrir": [
-        "Lycée Ettahrir",
-        "Lycée Mongi Slim",
-    ],
-    "Ezzouhour": [
-        "Lycée Ezzouhour",
-        "Lycée Tahar Haddad — Ezzouhour",
-    ],
-    "Hraïria": [
-        "Lycée Hraïria",
-    ],
-    "Sidi El Béchir": [
-        "Lycée Sidi El Béchir",
-        "Lycée Habib Maâzoun",
-    ],
-    "Sidi Hassine": [
-        "Lycée Sidi Hassine",
-        "Lycée Ibn Nafis — Sidi Hassine",
-    ],
-    "Ouardia": [
-        "Lycée Ouardia",
-        "Lycée 18 Janvier — Ouardia",
-    ],
-    "Omrane Supérieur": [
-        "Lycée Omrane Supérieur",
-        "Lycée 15 Octobre — Omrane",
-    ],
-    "Kram": [
-        "Lycée du Kram",
-        "Lycée El Amel — Kram",
-    ],
+    "Bab Bhar":     ["Lycée Carnot", "Lycée 9 Avril 1938"],
+    "Médina":       ["Collège Sadiki", "Lycée Khaznadar"],
+    "Le Bardo":     ["Lycée du Bardo"],
+    "Carthage":     ["Lycée de Carthage"],
+    "La Marsa":     ["Lycée La Marsa"],
+    "La Goulette":  ["Lycée de La Goulette"],
+    "El Kabaria":   ["Lycée El Kabaria"],
+    "Jebel Jelloud":["Lycée Jebel Jelloud"],
+    "Sijoumi":      ["Lycée Sijoumi"],
+    "Ettahrir":     ["Lycée Ettahrir"],
+    "Ezzouhour":    ["Lycée Ezzouhour"],
+    "Hraïria":      ["Lycée Hraïria"],
+    "Sidi Hassine": ["Lycée Sidi Hassine"],
+    "Omrane Supérieur": ["Lycée Omrane Supérieur"],
+    "Kram":         ["Lycée du Kram"],
+
     # ── Ariana ───────────────────────────────────────────────────────────────
-    "Ariana Médina": [
-        "Lycée d'Ariana",
-        "Lycée Mohamed Boudhina",
-        "Lycée 20 Mars — Ariana",
-    ],
-    "Ettadhamen": [
-        "Lycée Ettadhamen",
-        "Lycée Ibn Charaf",
-        "Lycée El Amal — Ettadhamen",
-    ],
-    "La Soukra": [
-        "Lycée La Soukra",
-        "Lycée Bourguiba de La Soukra",
-    ],
-    "Raoued": [
-        "Lycée Raoued",
-        "Lycée El Menzah — Raoued",
-    ],
-    "Mnihla": [
-        "Lycée Mnihla",
-    ],
-    "Sidi Thabet": [
-        "Lycée Sidi Thabet",
-    ],
-    "Kalâat el-Andalous": [
-        "Lycée Kalâat el-Andalous",
-    ],
+    "Ariana Médina": ["Lycée d'Ariana"],
+    "Ettadhamen":    ["Lycée Ettadhamen"],
+    "La Soukra":     ["Lycée La Soukra"],
+    "Raoued":        ["Lycée Raoued"],
+    "Mnihla":        ["Lycée Mnihla"],
+    "Sidi Thabet":   ["Lycée Sidi Thabet"],
+
     # ── Ben Arous ─────────────────────────────────────────────────────────────
-    "Ben Arous": [
-        "Lycée Ben Arous",
-        "Lycée 20 Mars — Ben Arous",
-        "Lycée Habib Bourguiba — Ben Arous",
-    ],
-    "El Mourouj": [
-        "Lycée El Mourouj 1",
-        "Lycée El Mourouj 2",
-        "Lycée El Mourouj 3",
-        "Lycée Kheireddine — El Mourouj",
-    ],
-    "Hammam Lif": [
-        "Lycée Hammam Lif",
-        "Lycée Ibn Rachiq",
-        "Lycée 7 Novembre — Hammam Lif",
-    ],
-    "Ezzahra": [
-        "Lycée Ezzahra",
-        "Lycée Ibn Khaldoun — Ezzahra",
-    ],
-    "Mégrine": [
-        "Lycée Mégrine",
-        "Lycée Ibn Sina — Mégrine",
-    ],
-    "Hammam Chott": [
-        "Lycée Hammam Chott",
-    ],
-    "Bou Mhel el-Bassatine": [
-        "Lycée Bou Mhel el-Bassatine",
-    ],
-    "Fouchana": [
-        "Lycée Fouchana",
-    ],
-    "Mornag": [
-        "Lycée Mornag",
-    ],
+    "Ben Arous":   ["Lycée Ben Arous"],
+    "El Mourouj":  ["Lycée El Mourouj 1", "Lycée El Mourouj 2"],
+    "Hammam Lif":  ["Lycée Hammam Lif"],
+    "Ezzahra":     ["Lycée Ezzahra"],
+    "Mégrine":     ["Lycée Mégrine"],
+    "Hammam Chott":["Lycée Hammam Chott"],
+    "Fouchana":    ["Lycée Fouchana"],
+    "Mornag":      ["Lycée Mornag"],
+
     # ── Manouba ───────────────────────────────────────────────────────────────
-    "Manouba": [
-        "Lycée de Manouba",
-        "Lycée Habib Bourguiba de Manouba",
-    ],
-    "Oued Ellil": [
-        "Lycée Oued Ellil",
-        "Lycée El Amel — Oued Ellil",
-    ],
-    "Tebourba": [
-        "Lycée Tebourba",
-    ],
-    "Douar Hicher": [
-        "Lycée Douar Hicher",
-        "Lycée Ibn Khaldoun — Douar Hicher",
-    ],
-    "Djedeida": [
-        "Lycée Djedeida",
-    ],
+    "Manouba":      ["Lycée de Manouba"],
+    "Oued Ellil":   ["Lycée Oued Ellil"],
+    "Tebourba":     ["Lycée Tebourba"],
+    "Douar Hicher": ["Lycée Douar Hicher"],
+    "Djedeida":     ["Lycée Djedeida"],
+
     # ── Nabeul ────────────────────────────────────────────────────────────────
-    "Nabeul": [
-        "Lycée de Nabeul",
-        "Lycée Ibn Abi Dhiaf — Nabeul",
-        "Lycée Azzouza Othmana",
-        "Lycée 7 Novembre — Nabeul",
-    ],
-    "Hammamet": [
-        "Lycée Hammamet",
-        "Lycée El Yasmine — Hammamet",
-        "Lycée Hammamet Sud",
-    ],
-    "Grombalia": [
-        "Lycée Grombalia",
-        "Lycée 25 Juillet — Grombalia",
-    ],
-    "Kélibia": [
-        "Lycée Kélibia",
-    ],
-    "Korba": [
-        "Lycée Korba",
-    ],
-    "Menzel Temime": [
-        "Lycée Menzel Temime",
-    ],
-    "Soliman": [
-        "Lycée Soliman",
-    ],
+    "Nabeul":        ["Lycée de Nabeul"],
+    "Hammamet":      ["Lycée Hammamet"],
+    "Grombalia":     ["Lycée Grombalia"],
+    "Kélibia":       ["Lycée Kélibia"],
+    "Korba":         ["Lycée Korba"],
+    "Menzel Temime": ["Lycée Menzel Temime"],
+    "Soliman":       ["Lycée Soliman"],
+
     # ── Bizerte ───────────────────────────────────────────────────────────────
-    "Bizerte Nord": [
-        "Lycée Bizerte",
-        "Lycée El Amel de Bizerte",
-        "Lycée El Menzah de Bizerte",
-        "Lycée Habib Bourguiba de Bizerte",
-    ],
-    "Bizerte Sud": [
-        "Lycée Bizerte Sud",
-        "Lycée Ibn Khaldoun — Bizerte",
-    ],
-    "Menzel Bourguiba": [
-        "Lycée Menzel Bourguiba",
-        "Lycée Farhat Hached — Menzel Bourguiba",
-    ],
-    "Ras Jebel": [
-        "Lycée Ras Jebel",
-    ],
-    "Mateur": [
-        "Lycée Mateur",
-    ],
-    "Sejnane": [
-        "Lycée Sejnane",
-    ],
-    "Menzel Jemil": [
-        "Lycée Menzel Jemil",
-    ],
+    "Bizerte Nord":     ["Lycée de Bizerte"],
+    "Bizerte Sud":      ["Lycée Bizerte Sud"],
+    "Menzel Bourguiba": ["Lycée Menzel Bourguiba"],
+    "Ras Jebel":        ["Lycée Ras Jebel"],
+    "Mateur":           ["Lycée Mateur"],
+    "Sejnane":          ["Lycée Sejnane"],
+    "Menzel Jemil":     ["Lycée Menzel Jemil"],
+
     # ── Béja ──────────────────────────────────────────────────────────────────
-    "Béja Nord": [
-        "Lycée de Béja",
-        "Lycée Farhat Hached de Béja",
-        "Lycée 7 Novembre — Béja",
-    ],
-    "Béja Sud": [
-        "Lycée Béja Sud",
-    ],
-    "Medjez el-Bab": [
-        "Lycée Medjez el-Bab",
-    ],
-    "Téboursouk": [
-        "Lycée Téboursouk",
-    ],
-    "Testour": [
-        "Lycée Testour",
-    ],
+    "Béja Nord":     ["Lycée de Béja"],
+    "Béja Sud":      ["Lycée Béja Sud"],
+    "Medjez el-Bab": ["Lycée Medjez el-Bab"],
+    "Téboursouk":    ["Lycée Téboursouk"],
+    "Testour":       ["Lycée Testour"],
+
     # ── Jendouba ──────────────────────────────────────────────────────────────
-    "Jendouba": [
-        "Lycée de Jendouba",
-        "Lycée 7 Novembre — Jendouba",
-        "Lycée Ibn Khaldoun — Jendouba",
-    ],
-    "Jendouba Nord": [
-        "Lycée Jendouba Nord",
-    ],
-    "Tabarka": [
-        "Lycée de Tabarka",
-    ],
-    "Ain Draham": [
-        "Lycée Ain Draham",
-    ],
-    "Bou Salem": [
-        "Lycée Bou Salem",
-    ],
-    "Ghardimaou": [
-        "Lycée Ghardimaou",
-    ],
+    "Jendouba":   ["Lycée de Jendouba"],
+    "Tabarka":    ["Lycée de Tabarka"],
+    "Ain Draham": ["Lycée Ain Draham"],
+    "Bou Salem":  ["Lycée Bou Salem"],
+    "Ghardimaou": ["Lycée Ghardimaou"],
+
     # ── Kef ───────────────────────────────────────────────────────────────────
-    "Kef Est": [
-        "Lycée du Kef",
-        "Lycée Habib Bourguiba du Kef",
-    ],
-    "Kef Ouest": [
-        "Lycée Kef Ouest",
-    ],
-    "Dahmani": [
-        "Lycée Dahmani",
-    ],
-    "Tajerouine": [
-        "Lycée Tajerouine",
-    ],
-    "Nebeur": [
-        "Lycée Nebeur",
-    ],
+    "Kef Est":    ["Lycée du Kef"],
+    "Kef Ouest":  ["Lycée Kef Ouest"],
+    "Dahmani":    ["Lycée Dahmani"],
+    "Tajerouine": ["Lycée Tajerouine"],
+
     # ── Siliana ───────────────────────────────────────────────────────────────
-    "Siliana Nord": [
-        "Lycée de Siliana",
-        "Lycée Farhat Hached — Siliana",
-    ],
-    "Siliana Sud": [
-        "Lycée Siliana Sud",
-    ],
-    "Maktar": [
-        "Lycée Maktar",
-    ],
-    "Bou Arada": [
-        "Lycée Bou Arada",
-    ],
+    "Siliana Nord": ["Lycée de Siliana"],
+    "Maktar":       ["Lycée Maktar"],
+    "Bou Arada":    ["Lycée Bou Arada"],
+
     # ── Sousse ────────────────────────────────────────────────────────────────
-    "Sousse Médina": [
-        "Lycée de Sousse",
-        "Lycée 15 Novembre — Sousse",
-        "Lycée Ibn Khaldoun — Sousse",
-    ],
-    "Sousse Jawhara": [
-        "Lycée Sousse Jawhara",
-        "Lycée El Manar — Sousse",
-    ],
-    "Sousse Riadh": [
-        "Lycée Sousse Riadh",
-    ],
-    "Sousse Sidi Abdelhamid": [
-        "Lycée Sidi Abdelhamid",
-    ],
-    "Hammam Sousse": [
-        "Lycée Hammam Sousse",
-        "Lycée 7 Novembre — Hammam Sousse",
-    ],
-    "Kalaa Kebira": [
-        "Lycée Kalaa Kebira",
-        "Lycée Ibn Rachiq — Kalaa Kebira",
-    ],
-    "M'saken": [
-        "Lycée M'saken",
-        "Lycée Sahloul",
-    ],
-    "Akouda": [
-        "Lycée Akouda",
-    ],
-    "Bouficha": [
-        "Lycée Bouficha",
-    ],
+    "Sousse Médina":  ["Lycée de Sousse"],
+    "Sousse Riadh":   ["Lycée Sousse Riadh"],
+    "Hammam Sousse":  ["Lycée Hammam Sousse"],
+    "Kalaa Kebira":   ["Lycée Kalaa Kebira"],
+    "M'saken":        ["Lycée M'saken"],
+    "Akouda":         ["Lycée Akouda"],
+    "Bouficha":       ["Lycée Bouficha"],
+
     # ── Monastir ──────────────────────────────────────────────────────────────
-    "Monastir": [
-        "Lycée Monastir",
-        "Lycée Ibn Khaldoun de Monastir",
-        "Lycée 20 Mars — Monastir",
-    ],
-    "Ksar Hellal": [
-        "Lycée Ksar Hellal",
-        "Lycée Habib Bourguiba — Ksar Hellal",
-    ],
-    "Moknine": [
-        "Lycée Moknine",
-    ],
-    "Jammel": [
-        "Lycée Jammel",
-    ],
-    "Téboulba": [
-        "Lycée Téboulba",
-    ],
-    "Zeramdine": [
-        "Lycée Zeramdine",
-    ],
+    "Monastir":    ["Lycée de Monastir"],
+    "Ksar Hellal": ["Lycée Ksar Hellal"],
+    "Moknine":     ["Lycée Moknine"],
+    "Jammel":      ["Lycée Jammel"],
+    "Téboulba":    ["Lycée Téboulba"],
+    "Zeramdine":   ["Lycée Zeramdine"],
+
     # ── Mahdia ────────────────────────────────────────────────────────────────
-    "Mahdia": [
-        "Lycée de Mahdia",
-        "Lycée Habib Bourguiba — Mahdia",
-        "Lycée El Amel — Mahdia",
-    ],
-    "El Jem": [
-        "Lycée El Jem",
-    ],
-    "Chebba": [
-        "Lycée Chebba",
-    ],
-    "Essouassi": [
-        "Lycée Essouassi",
-    ],
+    "Mahdia":    ["Lycée de Mahdia"],
+    "El Jem":    ["Lycée El Jem"],
+    "Chebba":    ["Lycée Chebba"],
+    "Essouassi": ["Lycée Essouassi"],
+
     # ── Sfax ──────────────────────────────────────────────────────────────────
-    "Sfax Médina": [
-        "Lycée de Sfax",
-        "Lycée Habib Maâzoun de Sfax",
-        "Lycée Ibn Khaldoun de Sfax",
-        "Lycée 15 Novembre — Sfax",
-    ],
-    "Sfax Est": [
-        "Lycée Sfax Est",
-        "Lycée 7 Novembre — Sfax Est",
-        "Lycée Ibn Sina — Sfax Est",
-    ],
-    "Sfax Ouest": [
-        "Lycée Sfax Ouest",
-        "Lycée Taïeb Mhiri — Sfax",
-    ],
-    "Sfax Sud": [
-        "Lycée Sfax Sud",
-    ],
-    "Sakiet Eddaïer": [
-        "Lycée Sakiet Eddaïer",
-    ],
-    "Sakiet Ezzit": [
-        "Lycée Sakiet Ezzit",
-    ],
-    "Gremda": [
-        "Lycée Gremda",
-    ],
-    "Agareb": [
-        "Lycée Agareb",
-    ],
-    "El Hencha": [
-        "Lycée El Hencha",
-    ],
-    "Mahres": [
-        "Lycée Mahres",
-    ],
-    "Jebiniana": [
-        "Lycée Jebiniana",
-    ],
+    "Sfax Médina":    ["Lycée de Sfax", "Lycée Habib Maâzoun"],
+    "Sfax Est":       ["Lycée Sfax Est"],
+    "Sfax Ouest":     ["Lycée Sfax Ouest"],
+    "Sfax Sud":       ["Lycée Sfax Sud"],
+    "Sakiet Eddaïer": ["Lycée Sakiet Eddaïer"],
+    "Sakiet Ezzit":   ["Lycée Sakiet Ezzit"],
+    "Gremda":         ["Lycée Gremda"],
+    "Agareb":         ["Lycée Agareb"],
+    "El Hencha":      ["Lycée El Hencha"],
+    "Mahres":         ["Lycée Mahres"],
+    "Jebiniana":      ["Lycée Jebiniana"],
+
     # ── Kairouan ──────────────────────────────────────────────────────────────
-    "Kairouan Nord": [
-        "Lycée de Kairouan",
-        "Lycée El Amel de Kairouan",
-        "Lycée Ibn Rachiq — Kairouan",
-        "Lycée 7 Novembre — Kairouan",
-    ],
-    "Kairouan Sud": [
-        "Lycée Kairouan Sud",
-    ],
-    "Sbikha": [
-        "Lycée Sbikha",
-    ],
-    "Haffouz": [
-        "Lycée Haffouz",
-    ],
-    "El Alâa": [
-        "Lycée El Alâa",
-    ],
-    "Hajeb El Ayoun": [
-        "Lycée Hajeb El Ayoun",
-    ],
+    "Kairouan Nord":  ["Lycée de Kairouan"],
+    "Kairouan Sud":   ["Lycée Kairouan Sud"],
+    "Sbikha":         ["Lycée Sbikha"],
+    "Haffouz":        ["Lycée Haffouz"],
+    "Hajeb El Ayoun": ["Lycée Hajeb El Ayoun"],
+
     # ── Kasserine ─────────────────────────────────────────────────────────────
-    "Kasserine Nord": [
-        "Lycée de Kasserine",
-        "Lycée Allal El Fassi de Kasserine",
-        "Lycée 7 Novembre — Kasserine",
-    ],
-    "Kasserine Sud": [
-        "Lycée Kasserine Sud",
-    ],
-    "Sbeitla": [
-        "Lycée Sbeitla",
-        "Lycée Farhat Hached — Sbeitla",
-    ],
-    "Feriana": [
-        "Lycée Feriana",
-    ],
-    "Foussana": [
-        "Lycée Foussana",
-    ],
+    "Kasserine Nord": ["Lycée de Kasserine"],
+    "Kasserine Sud":  ["Lycée Kasserine Sud"],
+    "Sbeitla":        ["Lycée Sbeitla"],
+    "Feriana":        ["Lycée Feriana"],
+    "Foussana":       ["Lycée Foussana"],
+
     # ── Sidi Bouzid ───────────────────────────────────────────────────────────
-    "Sidi Bouzid Est": [
-        "Lycée de Sidi Bouzid",
-        "Lycée Farhat Hached — Sidi Bouzid",
-        "Lycée 7 Novembre — Sidi Bouzid",
-    ],
-    "Sidi Bouzid Ouest": [
-        "Lycée Sidi Bouzid Ouest",
-    ],
-    "Regueb": [
-        "Lycée Regueb",
-    ],
-    "Meknassy": [
-        "Lycée Meknassy",
-    ],
-    "Bir El Hafey": [
-        "Lycée Bir El Hafey",
-    ],
+    "Sidi Bouzid Est":   ["Lycée de Sidi Bouzid"],
+    "Sidi Bouzid Ouest": ["Lycée Sidi Bouzid Ouest"],
+    "Regueb":            ["Lycée Regueb"],
+    "Meknassy":          ["Lycée Meknassy"],
+    "Bir El Hafey":      ["Lycée Bir El Hafey"],
+
     # ── Gabès ─────────────────────────────────────────────────────────────────
-    "Gabès Médina": [
-        "Lycée de Gabès",
-        "Lycée Ibn El Jazzar de Gabès",
-        "Lycée 7 Novembre — Gabès",
-        "Lycée Habib Bourguiba — Gabès",
-    ],
-    "Gabès Ouest": [
-        "Lycée Gabès Ouest",
-    ],
-    "Gabès Sud": [
-        "Lycée Gabès Sud",
-    ],
-    "El Hamma": [
-        "Lycée El Hamma",
-    ],
-    "Mareth": [
-        "Lycée Mareth",
-    ],
-    "Matmata": [
-        "Lycée Matmata",
-    ],
-    "Ghannouch": [
-        "Lycée Ghannouch",
-    ],
+    "Gabès Médina": ["Lycée de Gabès"],
+    "Gabès Ouest":  ["Lycée Gabès Ouest"],
+    "Gabès Sud":    ["Lycée Gabès Sud"],
+    "El Hamma":     ["Lycée El Hamma"],
+    "Mareth":       ["Lycée Mareth"],
+    "Matmata":      ["Lycée Matmata"],
+    "Ghannouch":    ["Lycée Ghannouch"],
+
     # ── Medenine ──────────────────────────────────────────────────────────────
-    "Medenine Nord": [
-        "Lycée de Medenine",
-        "Lycée Habib Bourguiba — Medenine",
-    ],
-    "Medenine Sud": [
-        "Lycée Medenine Sud",
-    ],
-    "Zarzis": [
-        "Lycée Zarzis",
-        "Lycée El Amel — Zarzis",
-    ],
-    "Djerba Houmt Souk": [
-        "Lycée de Houmt Souk",
-        "Lycée Ibn Rashiq — Djerba",
-        "Lycée 7 Novembre — Djerba",
-    ],
-    "Djerba Midoun": [
-        "Lycée Djerba Midoun",
-    ],
-    "Ben Gardane": [
-        "Lycée Ben Gardane",
-    ],
-    "Beni Khedache": [
-        "Lycée Beni Khedache",
-    ],
+    "Medenine Nord":     ["Lycée de Medenine"],
+    "Medenine Sud":      ["Lycée Medenine Sud"],
+    "Zarzis":            ["Lycée Zarzis"],
+    "Djerba Houmt Souk": ["Lycée de Houmt Souk"],
+    "Djerba Midoun":     ["Lycée Djerba Midoun"],
+    "Ben Gardane":       ["Lycée Ben Gardane"],
+    "Beni Khedache":     ["Lycée Beni Khedache"],
+
     # ── Tataouine ─────────────────────────────────────────────────────────────
-    "Tataouine Nord": [
-        "Lycée de Tataouine",
-        "Lycée 7 Novembre — Tataouine",
-    ],
-    "Tataouine Sud": [
-        "Lycée Tataouine Sud",
-    ],
-    "Ghomrassen": [
-        "Lycée Ghomrassen",
-    ],
-    "Remada": [
-        "Lycée Remada",
-    ],
+    "Tataouine Nord": ["Lycée de Tataouine"],
+    "Tataouine Sud":  ["Lycée Tataouine Sud"],
+    "Ghomrassen":     ["Lycée Ghomrassen"],
+    "Remada":         ["Lycée Remada"],
+
     # ── Gafsa ─────────────────────────────────────────────────────────────────
-    "Gafsa Nord": [
-        "Lycée de Gafsa",
-        "Lycée 7 Novembre de Gafsa",
-        "Lycée Habib Bourguiba — Gafsa",
-    ],
-    "Gafsa Sud": [
-        "Lycée Gafsa Sud",
-    ],
-    "Métlaoui": [
-        "Lycée Métlaoui",
-        "Lycée Ibn Khaldoun — Métlaoui",
-    ],
-    "Redeyef": [
-        "Lycée Redeyef",
-    ],
-    "Moulares": [
-        "Lycée Moulares",
-    ],
-    "El Guetar": [
-        "Lycée El Guetar",
-    ],
-    "El Ksar": [
-        "Lycée El Ksar — Gafsa",
-    ],
-    "Oum El Araies": [
-        "Lycée Oum El Araies",
-    ],
+    "Gafsa Nord":     ["Lycée de Gafsa"],
+    "Gafsa Sud":      ["Lycée Gafsa Sud"],
+    "Métlaoui":       ["Lycée Métlaoui"],
+    "Redeyef":        ["Lycée Redeyef"],
+    "Moulares":       ["Lycée Moulares"],
+    "El Guetar":      ["Lycée El Guetar"],
+    "El Ksar":        ["Lycée El Ksar"],
+    "Oum El Araies":  ["Lycée Oum El Araies"],
+
     # ── Tozeur ────────────────────────────────────────────────────────────────
-    "Tozeur": [
-        "Lycée de Tozeur",
-        "Lycée Ibn Rachiq — Tozeur",
-    ],
-    "Nefta": [
-        "Lycée Nefta",
-    ],
-    "Degache": [
-        "Lycée Degache",
-    ],
+    "Tozeur":  ["Lycée de Tozeur"],
+    "Nefta":   ["Lycée Nefta"],
+    "Degache": ["Lycée Degache"],
+
     # ── Kébili ────────────────────────────────────────────────────────────────
-    "Kébili Nord": [
-        "Lycée de Kébili",
-        "Lycée Habib Bourguiba — Kébili",
-    ],
-    "Kébili Sud": [
-        "Lycée Kébili Sud",
-    ],
-    "Douz Nord": [
-        "Lycée Douz",
-    ],
-    "Souk El Ahed": [
-        "Lycée Souk El Ahed",
-    ],
+    "Kébili Nord":  ["Lycée de Kébili"],
+    "Kébili Sud":   ["Lycée Kébili Sud"],
+    "Douz Nord":    ["Lycée Douz"],
+    "Souk El Ahed": ["Lycée Souk El Ahed"],
 }
 
 
