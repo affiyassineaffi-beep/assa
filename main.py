@@ -2955,10 +2955,62 @@ def _err_500(e):
     ), 500
 
 
+# ─── Startup secrets audit (prints a clear status report on boot) ─────────────
+def _print_startup_audit() -> None:
+    """Print a friendly checklist of every secret the app looks at."""
+    checks = [
+        ("SESSION_SECRET",                 "Session encryption",       True),
+        ("GOOGLE_OAUTH_CLIENT_ID",         "Google login",             False),
+        ("GOOGLE_OAUTH_CLIENT_SECRET",     "Google login",             False),
+        ("GEMINI_API_KEY",                 "AI Mentor (Gemini)",       False),
+        ("GEMINI_API_KEY_2",               "AI Mentor backup #2",      False),
+        ("GEMINI_API_KEY_3",               "AI Mentor backup #3",      False),
+        ("HUGGINGFACE_API_TOKEN",          "AI fallback (HuggingFace)", False),
+        ("SMTP_HOST",                      "Email (SMTP host)",        False),
+        ("SMTP_USER",                      "Email (SMTP user)",        False),
+        ("SMTP_PASSWORD",                  "Email (SMTP password)",    False),
+        ("CLOUDINARY_CLOUD_NAME",          "Avatar storage",           False),
+        ("CLOUDINARY_API_KEY",             "Avatar storage",           False),
+        ("CLOUDINARY_API_SECRET",          "Avatar storage",           False),
+        ("FIREBASE_STORAGE_BUCKET",        "Video storage",            False),
+        ("FIREBASE_SERVICE_ACCOUNT_JSON",  "Video storage",            False),
+        ("YOUTUBE_API_KEY",                "YouTube search (optional)", False),
+        ("ADMIN_EMAIL",                    "Admin panel access",       False),
+    ]
+    print("\n" + "═" * 60, flush=True)
+    print("  SSAS — Startup Secrets Audit", flush=True)
+    print("═" * 60, flush=True)
+    for key, purpose, required in checks:
+        present = bool(os.environ.get(key, "").strip())
+        if present:
+            mark = "✅"
+            status = "Detected"
+        else:
+            mark = "❌" if required else "⚠️ "
+            status = "MISSING (required)" if required else "not set (feature disabled)"
+        print(f"  {mark}  {key:<32} {status:<28} — {purpose}", flush=True)
+    print("═" * 60, flush=True)
+    # Friendly grouped summaries
+    google_ok = all(os.environ.get(k) for k in ("GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET"))
+    smtp_ok   = all(os.environ.get(k) for k in ("SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD"))
+    gemini_ok = any(os.environ.get(k) for k in ("GEMINI_API_KEY", "GEMINI_API_KEY_2", "GEMINI_API_KEY_3"))
+    cloud_ok  = all(os.environ.get(k) for k in ("CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"))
+    fire_ok   = all(os.environ.get(k) for k in ("FIREBASE_STORAGE_BUCKET", "FIREBASE_SERVICE_ACCOUNT_JSON"))
+    hf_ok     = bool(os.environ.get("HUGGINGFACE_API_TOKEN"))
+    print(f"  {'✅' if google_ok else '⚠️ '} System Ready: Google OAuth      {'Detected' if google_ok else 'not configured'}", flush=True)
+    print(f"  {'✅' if smtp_ok   else '⚠️ '} System Ready: SMTP Email        {'Detected' if smtp_ok   else 'not configured'}", flush=True)
+    print(f"  {'✅' if gemini_ok else '⚠️ '} System Ready: Gemini AI         {'Detected' if gemini_ok else 'not configured'}", flush=True)
+    print(f"  {'✅' if hf_ok     else '⚠️ '} System Ready: HF Token          {'Detected' if hf_ok     else 'not configured'}", flush=True)
+    print(f"  {'✅' if cloud_ok  else '⚠️ '} System Ready: Cloudinary        {'Detected' if cloud_ok  else 'not configured (using local storage)'}", flush=True)
+    print(f"  {'✅' if fire_ok   else '⚠️ '} System Ready: Firebase Storage  {'Detected' if fire_ok   else 'not configured (using local storage)'}", flush=True)
+    print("═" * 60 + "\n", flush=True)
+
+
 # ─── Run ──────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     Path("data").mkdir(exist_ok=True)
     with app.app_context():
         _ensure_schema()
+    _print_startup_audit()
     socketio.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", "5000")),
                  debug=False, use_reloader=False, allow_unsafe_werkzeug=True)
