@@ -2124,3 +2124,200 @@ select#stg-school:focus, select[name="gender"]:focus {
   padding: 14px 6px 16px;
   display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   SSAS · BRAND REBUILD — Logo-derived palette + premium glass override
+   (Apr 2026 — "Total Rebuild" pass)
+   Brand mark gradient: Violet #a855f7 → Cyan #38bdf8 → Pink #f472b6
+   ════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Brand palette derived from the new SSAS logo */
+  --brand-violet:  #a855f7;
+  --brand-cyan:    #38bdf8;
+  --brand-pink:    #f472b6;
+  --brand-grad:    linear-gradient(135deg, #a855f7 0%, #38bdf8 50%, #f472b6 100%);
+  --brand-grad-soft: linear-gradient(135deg,
+                       rgba(168,85,247,.18) 0%,
+                       rgba(56,189,248,.18) 50%,
+                       rgba(244,114,182,.18) 100%);
+  --brand-glow:    0 0 18px rgba(56,189,248,.35),
+                   0 0 32px rgba(168,85,247,.20),
+                   0 8px 28px rgba(0,0,0,.35);
+}
+
+/* ── Navbar brand: replace emoji background with mini SVG logo ──────────── */
+.navbar-brand .brand-icon-svg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px; height: 28px;
+  margin-right: 8px;
+  border-radius: 9px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(168,85,247,.25);
+  box-shadow: 0 0 14px rgba(56,189,248,.18);
+  filter: drop-shadow(0 0 6px rgba(168,85,247,.25));
+  flex-shrink: 0;
+}
+.navbar-brand .brand-icon-svg svg { display: block; }
+
+/* ── Premium glass-pill v2 — guaranteed transparent, neon border ────────── */
+.glass-pill span {
+  background: var(--brand-grad-soft) !important;
+  border: 1px solid rgba(168,85,247,.30) !important;
+  backdrop-filter: blur(16px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
+  color: rgba(255,255,255,.88) !important;
+  text-shadow: 0 0 6px rgba(56,189,248,.15);
+  letter-spacing: .2px;
+  padding: 8px 16px !important;
+  border-radius: 999px !important;
+  transition: all .25s cubic-bezier(.4,0,.2,1) !important;
+}
+.glass-pill:hover span {
+  background: linear-gradient(135deg,
+              rgba(168,85,247,.28),
+              rgba(56,189,248,.28),
+              rgba(244,114,182,.28)) !important;
+  border-color: var(--brand-cyan) !important;
+  color: #fff !important;
+  box-shadow: 0 0 18px rgba(56,189,248,.35),
+              0 0 32px rgba(168,85,247,.20) !important;
+  transform: translateY(-1px) scale(1.02);
+}
+.glass-pill input[type="radio"]:checked + span {
+  background: linear-gradient(135deg,
+              rgba(168,85,247,.42),
+              rgba(56,189,248,.42),
+              rgba(244,114,182,.42)) !important;
+  border: 1px solid rgba(56,189,248,.85) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 22px rgba(56,189,248,.55),
+              0 0 44px rgba(168,85,247,.35),
+              inset 0 0 14px rgba(255,255,255,.08) !important;
+  text-shadow: 0 0 12px rgba(56,189,248,.7);
+  transform: translateY(-1px);
+}
+.glass-pill input[type="radio"]:checked + span svg {
+  filter: drop-shadow(0 0 6px rgba(255,255,255,.85));
+}
+
+/* Light-mode safety: never let pills become white boxes */
+@media (prefers-color-scheme: light) {
+  .glass-pill span {
+    background: rgba(168,85,247,.10) !important;
+    color: rgba(20,20,30,.85) !important;
+  }
+}
+
+/* ── Theme-pick buttons (Dark / Light / System) — same brand glass ─────── */
+.theme-pick-item span {
+  background: var(--brand-grad-soft);
+  border: 1px solid rgba(168,85,247,.28);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  color: rgba(255,255,255,.85);
+  border-radius: 12px;
+  transition: all .22s ease;
+}
+.theme-pick-item:hover span {
+  border-color: var(--brand-cyan);
+  box-shadow: var(--brand-glow);
+}
+.theme-pick-item.active span,
+.theme-pick-item input[type="radio"]:checked + span {
+  background: linear-gradient(135deg,
+              rgba(168,85,247,.34),
+              rgba(56,189,248,.34));
+  border-color: rgba(56,189,248,.8);
+  color: #fff;
+  box-shadow: var(--brand-glow);
+}
+
+/* ── Settings cards — subtle brand border tint + heavier blur ───────────── */
+.settings-card {
+  border: 1px solid rgba(168,85,247,.18) !important;
+  background: linear-gradient(145deg,
+              rgba(20,15,32,.55),
+              rgba(10,10,18,.55)) !important;
+  backdrop-filter: blur(22px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(150%) !important;
+  box-shadow: 0 0 28px rgba(168,85,247,.10),
+              0 8px 36px rgba(0,0,0,.35) !important;
+  transition: border-color .3s ease, box-shadow .3s ease;
+}
+.settings-card:hover {
+  border-color: rgba(56,189,248,.35) !important;
+  box-shadow: 0 0 32px rgba(56,189,248,.18),
+              0 12px 44px rgba(0,0,0,.4) !important;
+}
+.settings-card .section-icon,
+.settings-card .heading-icon,
+.settings-card .field-icon {
+  stroke: url(#navBrandG) !important; /* fallback below for browsers w/o grad-stroke */
+  color: var(--brand-cyan);
+  filter: drop-shadow(0 0 6px rgba(56,189,248,.4));
+}
+
+/* ── Primary buttons — full brand gradient with neon glow ───────────────── */
+.btn-primary {
+  background: var(--brand-grad) !important;
+  background-size: 200% 100%;
+  border: 0 !important;
+  color: #fff !important;
+  box-shadow: 0 0 18px rgba(56,189,248,.35),
+              0 8px 24px rgba(168,85,247,.25) !important;
+  transition: background-position .35s ease, transform .15s ease, box-shadow .25s ease !important;
+}
+.btn-primary:hover {
+  background-position: 100% 0 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 0 26px rgba(56,189,248,.5),
+              0 12px 30px rgba(168,85,247,.35) !important;
+}
+
+/* ── List items: unified neon hover (lists, search, conv-list) ──────────── */
+.conv-list li:hover,
+.lb-list li:hover,
+.search-results-list li:hover,
+.resource-list li:hover {
+  border-color: rgba(168,85,247,.45) !important;
+  box-shadow: 0 0 18px rgba(168,85,247,.25),
+              0 6px 24px rgba(0,0,0,.3) !important;
+}
+
+/* ── Bottom-nav active tab uses the brand gradient instead of plain cyan ── */
+.bn-item.active .bn-icon,
+.bn-item.active svg {
+  stroke: var(--brand-cyan) !important;
+  filter: drop-shadow(0 0 8px rgba(56,189,248,.7))
+          drop-shadow(0 0 14px rgba(168,85,247,.4));
+}
+
+/* ── AI avatar bubble in chat (Sami) — brand glow ───────────────────────── */
+.chat-avatar.ai-avatar {
+  background: var(--brand-grad-soft);
+  border: 1px solid rgba(168,85,247,.4);
+  box-shadow: 0 0 16px rgba(56,189,248,.35);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.chat-avatar.ai-avatar svg { width: 28px; height: 28px; }
+
+/* ── Streaming bubble: subtle pulsing brand ring ────────────────────────── */
+.chat-bubble.streaming .bubble-body {
+  background: var(--brand-grad-soft);
+  border: 1px solid rgba(56,189,248,.45);
+  box-shadow: 0 0 14px rgba(56,189,248,.25);
+  animation: ssasPulseGlow 1.6s ease-in-out infinite;
+}
+@keyframes ssasPulseGlow {
+  0%,100% { box-shadow: 0 0 10px rgba(56,189,248,.18); }
+  50%     { box-shadow: 0 0 22px rgba(168,85,247,.45),
+                        0 0 36px rgba(56,189,248,.25); }
+}
+.chat-bubble.bubble-error .bubble-body {
+  background: rgba(244,114,182,.10);
+  border: 1px solid rgba(244,114,182,.45);
+  color: #ffd7e8;
+}

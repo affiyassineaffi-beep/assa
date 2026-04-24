@@ -5,13 +5,56 @@
   <canvas id="ssas-intro-particles"></canvas>
   <div id="ssas-intro-glow"></div>
 
-  <!-- App icon (speech-bubble logo, matches launcher icon) -->
+  <!-- Brand logo — futuristic AI/connection mark (inline SVG) -->
   <div id="ssas-intro-logo">
-    <img id="ssas-intro-img"
-         src="{{ url_for('static', filename='img/app_icon.png') }}"
-         alt="SSAS" draggable="false"/>
+    <svg id="ssas-intro-img" viewBox="0 0 64 64" aria-hidden="true">
+      <defs>
+        <linearGradient id="introBg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+          <stop offset="0%"  stop-color="#0a0612"/>
+          <stop offset="100%" stop-color="#1a0f2a"/>
+        </linearGradient>
+        <linearGradient id="introRing" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+          <stop offset="0%"  stop-color="#a855f7"/>
+          <stop offset="50%" stop-color="#38bdf8"/>
+          <stop offset="100%" stop-color="#f472b6"/>
+        </linearGradient>
+        <radialGradient id="introCore" cx=".5" cy=".5" r=".5">
+          <stop offset="0%"   stop-color="#ffffff"/>
+          <stop offset="35%"  stop-color="#38bdf8"/>
+          <stop offset="80%"  stop-color="rgba(124,92,255,.5)"/>
+          <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
+        </radialGradient>
+        <filter id="introGlow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="1.4" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <rect width="64" height="64" rx="16" fill="url(#introBg)"/>
+      <rect x="1" y="1" width="62" height="62" rx="15"
+            fill="none" stroke="url(#introRing)" stroke-width=".6" opacity=".55"/>
+      <polygon points="32,5 55,18 55,46 32,59 9,46 9,18"
+               fill="none" stroke="url(#introRing)" stroke-width="1.1" opacity=".6"/>
+      <g fill="url(#introRing)" opacity=".95">
+        <circle cx="32" cy="5"  r="1.6"/>
+        <circle cx="55" cy="18" r="1.6"/>
+        <circle cx="55" cy="46" r="1.6"/>
+        <circle cx="32" cy="59" r="1.6"/>
+        <circle cx="9"  cy="46" r="1.6"/>
+        <circle cx="9"  cy="18" r="1.6"/>
+      </g>
+      <g filter="url(#introGlow)" fill="none" stroke="url(#introRing)"
+         stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M 18 32 C 18 23,28 23,32 32 C 36 41,46 41,46 32 C 46 23,36 23,32 32 C 28 41,18 41,18 32 Z"/>
+      </g>
+      <circle cx="32" cy="32" r="8" fill="url(#introCore)" opacity=".95"/>
+      <circle cx="32" cy="32" r="1.8" fill="#ffffff" filter="url(#introGlow)"/>
+      <g fill="#ffffff" opacity=".95">
+        <circle cx="18" cy="32" r="1.5"/>
+        <circle cx="46" cy="32" r="1.5"/>
+      </g>
+    </svg>
     <div id="ssas-intro-wordmark">SSAS</div>
-    <div id="ssas-intro-sub">Discussions · Études · Communauté</div>
+    <div id="ssas-intro-sub">Discussions · IA · Communauté</div>
   </div>
 
   <!-- Scanlines overlay -->
@@ -72,17 +115,17 @@
   }
   #ssas-intro-img{
     width: clamp(140px,32vmin,220px);
-    height:auto;display:block;border-radius:32px;
+    height:auto;display:block;border-radius:24px;
     user-select:none;-webkit-user-drag:none;
-    filter:drop-shadow(0 0 0 rgba(255,180,80,0));
+    filter:drop-shadow(0 0 0 rgba(56,189,248,0));
     animation: ssasNeonPulse 3.6s cubic-bezier(.2,.7,.2,1) forwards;
   }
   @keyframes ssasNeonPulse{
-    0%  { filter:drop-shadow(0 0 0 rgba(255,180,80,0)); }
-    50% { filter:drop-shadow(0 0 38px rgba(236,89,153,.95))
-                 drop-shadow(0 0 70px rgba(255,180,80,.65)); }
-    75% { filter:drop-shadow(0 0 24px rgba(140,90,255,.7)); }
-    100%{ filter:drop-shadow(0 0 18px rgba(236,89,153,.55)); }
+    0%  { filter:drop-shadow(0 0 0 rgba(56,189,248,0)); }
+    50% { filter:drop-shadow(0 0 38px rgba(56,189,248,.95))
+                 drop-shadow(0 0 70px rgba(168,85,247,.65)); }
+    75% { filter:drop-shadow(0 0 24px rgba(244,114,182,.7)); }
+    100%{ filter:drop-shadow(0 0 18px rgba(56,189,248,.55)); }
   }
   @keyframes ssasIntroLogo{
     0%  { opacity:0; transform:scale(.5) translateY(20px); }

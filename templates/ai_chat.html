@@ -1,15 +1,34 @@
 {% extends "base.html" %}
-{% block title %}Sami · Compagnon IA{% endblock %}
+{% block title %}Sami · IT & Sport Coach{% endblock %}
 {% block content %}
 <div class="chat-page" data-me-id="{{ student.id }}">
 
   <header class="chat-header glass">
     <a href="{{ url_for('dashboard') }}" class="chat-back" aria-label="Retour">←</a>
-    <div class="chat-avatar ai-avatar">✨</div>
+    <div class="chat-avatar ai-avatar">
+      <svg viewBox="0 0 64 64" width="28" height="28" aria-hidden="true">
+        <defs>
+          <linearGradient id="aiAvG" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#a855f7"/>
+            <stop offset="50%" stop-color="#38bdf8"/>
+            <stop offset="100%" stop-color="#f472b6"/>
+          </linearGradient>
+        </defs>
+        <path d="M 18 32 C 18 23,28 23,32 32 C 36 41,46 41,46 32 C 46 23,36 23,32 32 C 28 41,18 41,18 32 Z"
+              fill="none" stroke="url(#aiAvG)" stroke-width="3.6" stroke-linecap="round"/>
+        <circle cx="32" cy="32" r="2.6" fill="#fff"/>
+      </svg>
+    </div>
     <div class="chat-header-info">
-      <strong class="chat-header-name">Sami · IA</strong>
+      <strong class="chat-header-name">Sami · IT & Sport Coach</strong>
       <span class="chat-header-sub muted small">
-        {% if ai_configured %}En ligne · powered by Gemini{% else %}Hors-ligne — clé API manquante{% endif %}
+        {% if hf_configured %}
+          En ligne · Hugging Face · Darija 🇹🇳
+        {% elif ai_configured %}
+          En ligne · Gemini · مود تجريبي
+        {% else %}
+          Hors-ligne — Hugging Face token غير مضبوط
+        {% endif %}
       </span>
     </div>
     <form method="post" action="{{ url_for('ai_reset') }}" style="margin-left:auto"
@@ -21,7 +40,10 @@
   <div class="chat-stream" id="ai-stream">
     {% if not history %}
       <div class="chat-bubble theirs">
-        <div class="bubble-body">Salut {{ student.username }} 👋 — moi c'est Sami. On parle études, tech, ou n'importe quoi qui te trotte dans la tête ?</div>
+        <div class="bubble-body">
+          أهلا {{ student.username }} 👋 — أنا <strong>Sami</strong>, الكوتش متاعك في الـIT والسبور.
+          إسألني على البرمجة، الشبكات، التدريب، التغذية… نخدمو بالدارجة التونسية ✨
+        </div>
       </div>
     {% else %}
       {% for h in history %}
@@ -33,9 +55,11 @@
   </div>
 
   <form class="chat-composer glass" id="ai-form" autocomplete="off">
-    <input type="text" id="ai-input" placeholder="{% if ai_configured %}Pose ta question à Sami…{% else %}Indisponible{% endif %}"
-           {% if not ai_configured %}disabled{% endif %} maxlength="2000"/>
-    <button type="submit" class="chat-send" aria-label="Envoyer" {% if not ai_configured %}disabled{% endif %}>➤</button>
+    <input type="text" id="ai-input"
+           placeholder="{% if hf_configured or ai_configured %}اكتب لـSami بالدارجة (IT, sport, نصايح…){% else %}Sami غير مضبوط{% endif %}"
+           {% if not (hf_configured or ai_configured) %}disabled{% endif %} maxlength="2000"/>
+    <button type="submit" class="chat-send" aria-label="Envoyer"
+            {% if not (hf_configured or ai_configured) %}disabled{% endif %}>➤</button>
   </form>
 </div>
 {% endblock %}
@@ -46,6 +70,7 @@
   const stream = document.getElementById('ai-stream');
   const form   = document.getElementById('ai-form');
   const input  = document.getElementById('ai-input');
+  const HF_FIRST = {{ 'true' if hf_configured else 'false' }};
 
   function scrollDown(){ stream.scrollTop = stream.scrollHeight; }
   scrollDown();
@@ -62,6 +87,61 @@
     return body;
   }
 
+  // Try Hugging Face first (non-streaming JSON). On failure, fall back to Gemini SSE.
+  async function callHF(msg, replyBody){
+    const r = await fetch('/ai/hf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok){
+      throw new Error(data.error || ('HF HTTP ' + r.status));
+    }
+    replyBody.textContent = data.reply || '';
+    return true;
+  }
+
+  async function callGeminiSSE(msg, replyBody){
+    const resp = await fetch('/ai/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg }),
+    });
+    if (!resp.ok || !resp.body){
+      const err = await resp.json().catch(() => ({error:'Erreur serveur'}));
+      throw new Error(err.error || 'Erreur');
+    }
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '', acc = '', done = false;
+    while (!done){
+      const { value, done: rDone } = await reader.read();
+      if (rDone) break;
+      buf += decoder.decode(value, { stream: true });
+      const events = buf.split('\n\n'); buf = events.pop();
+      for (const evt of events){
+        const lines = evt.split('\n');
+        let dataLines = [], evtName = 'message';
+        for (const l of lines){
+          if (l.startsWith('event: ')) evtName = l.slice(7).trim();
+          else if (l.startsWith('data: ')) dataLines.push(l.slice(6));
+        }
+        if (evtName === 'done'){ done = true; continue; }
+        if (evtName === 'error'){
+          throw new Error(dataLines.join('\n'));
+        }
+        if (evtName === 'status'){
+          replyBody.textContent = dataLines.join('\n'); scrollDown(); continue;
+        }
+        for (const d of dataLines){
+          if (d === '\\n') acc += '\n'; else acc += d;
+        }
+        replyBody.textContent = acc; scrollDown();
+      }
+    }
+  }
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const msg = input.value.trim();
@@ -72,64 +152,22 @@
 
     const replyBody = bubble('', false);
     replyBody.parentElement.classList.add('streaming');
+    replyBody.textContent = '✨';
 
     try {
-      const resp = await fetch('/ai/stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg }),
-      });
-      if (!resp.ok || !resp.body){
-        const err = await resp.json().catch(() => ({error:'Erreur serveur'}));
-        replyBody.textContent = '⚠️ ' + (err.error || 'Erreur');
-        replyBody.parentElement.classList.remove('streaming');
-        input.disabled = false; input.focus();
-        return;
-      }
-      // Parse SSE stream
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let buf = '';
-      let acc = '';
-      let done = false;
-      while (!done){
-        const { value, done: rDone } = await reader.read();
-        if (rDone) break;
-        buf += decoder.decode(value, { stream: true });
-        // Split on blank line (event boundary)
-        const events = buf.split('\n\n');
-        buf = events.pop();
-        for (const evt of events){
-          const lines = evt.split('\n');
-          let dataLines = [];
-          let evtName = 'message';
-          for (const l of lines){
-            if (l.startsWith('event: ')) evtName = l.slice(7).trim();
-            else if (l.startsWith('data: ')) dataLines.push(l.slice(6));
-          }
-          if (evtName === 'done'){ done = true; continue; }
-          if (evtName === 'error'){
-            replyBody.textContent = '⚠️ ' + dataLines.join('\n');
-            replyBody.parentElement.classList.add('bubble-error');
-            done = true; continue;
-          }
-          if (evtName === 'status'){
-            // Show transient status (retry / key rotation) without erasing reply
-            replyBody.textContent = dataLines.join('\n');
-            scrollDown();
-            continue;
-          }
-          // data lines: each "\\n" placeholder becomes a real newline
-          for (const d of dataLines){
-            if (d === '\\n') acc += '\n';
-            else acc += d;
-          }
-          replyBody.textContent = acc;
-          scrollDown();
+      if (HF_FIRST){
+        try { await callHF(msg, replyBody); }
+        catch (hfErr){
+          // Fall back to Gemini if available
+          try { await callGeminiSSE(msg, replyBody); }
+          catch { throw hfErr; }
         }
+      } else {
+        await callGeminiSSE(msg, replyBody);
       }
     } catch (err){
-      replyBody.textContent = '⚠️ Erreur réseau : ' + err.message;
+      replyBody.textContent = '⚠️ ' + (err.message || err);
+      replyBody.parentElement.classList.add('bubble-error');
     } finally {
       replyBody.parentElement.classList.remove('streaming');
       input.disabled = false; input.focus();
