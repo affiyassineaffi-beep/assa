@@ -855,6 +855,46 @@ def verify_phone():
 
 
 # ─── Google OAuth ─────────────────────────────────────────────────────────────
+@app.route("/auth/debug")
+def google_oauth_debug():
+    """Show the exact redirect URI(s) to register in Google Cloud Console."""
+    current = get_google_redirect_url()
+    domains_env = os.environ.get("REPLIT_DOMAINS", "") or os.environ.get("REPLIT_DEV_DOMAIN", "")
+    extra = [f"https://{d.strip()}/auth/callback"
+             for d in domains_env.split(",") if d.strip()]
+    all_uris = list(dict.fromkeys([current] + extra))  # dedupe, keep order
+    configured = google_is_configured()
+    items = "".join(f"<li><code>{u}</code></li>" for u in all_uris)
+    return f"""<!doctype html><html><head><meta charset='utf-8'>
+<title>Google OAuth — Redirect URI Setup</title>
+<style>body{{font-family:system-ui;background:#0a0a0f;color:#e2e8f0;padding:32px;max-width:720px;margin:0 auto;line-height:1.6}}
+code{{background:#1a1a2e;color:#38bdf8;padding:3px 8px;border-radius:6px;font-family:monospace;word-break:break-all}}
+h1{{color:#f1f5f9}}.box{{background:rgba(16,16,24,.7);border:1px solid rgba(56,189,248,.2);
+border-radius:14px;padding:22px;margin:18px 0}}.bad{{color:#f87171}}.ok{{color:#4ade80}}
+ol li{{margin:10px 0}}a{{color:#38bdf8}}</style></head><body>
+<h1>🔧 Google OAuth — Redirect URI Setup</h1>
+<div class='box'>
+<p>Status: {"<span class='ok'>✅ Client ID + Secret detected</span>" if configured else "<span class='bad'>❌ GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET missing in Secrets</span>"}</p>
+</div>
+<div class='box'>
+<h3>Add these EXACT redirect URIs in Google Cloud Console:</h3>
+<ul>{items}</ul>
+</div>
+<div class='box'>
+<h3>Step-by-step:</h3>
+<ol>
+<li>Open <a href='https://console.cloud.google.com/apis/credentials' target='_blank'>Google Cloud Console → Credentials</a></li>
+<li>Click your OAuth 2.0 Client ID (the one whose ID/secret you pasted in Replit Secrets)</li>
+<li>Under <b>Authorized redirect URIs</b> click <b>+ ADD URI</b></li>
+<li>Paste each URI shown above (one per line) — they must match <b>exactly</b>, including <code>https://</code> and no trailing slash</li>
+<li>Click <b>SAVE</b> at the bottom</li>
+<li>Wait ~1 minute, then try logging in again</li>
+</ol>
+</div>
+<p><a href='/'>← Back to home</a></p>
+</body></html>"""
+
+
 @app.route("/google_login")
 def google_login():
     if not google_is_configured():
@@ -3012,7 +3052,17 @@ def _print_startup_audit() -> None:
     print(f"  {'✅' if hf_ok     else '⚠️ '} System Ready: HF Token          {'Detected' if hf_ok     else 'not configured'}", flush=True)
     print(f"  {'✅' if cloud_ok  else '⚠️ '} System Ready: Cloudinary        {'Detected' if cloud_ok  else 'not configured (using local storage)'}", flush=True)
     print(f"  {'✅' if fire_ok   else '⚠️ '} System Ready: Firebase Storage  {'Detected' if fire_ok   else 'not configured (using local storage)'}", flush=True)
-    print("═" * 60 + "\n", flush=True)
+    print("═" * 60, flush=True)
+    # Print the Google OAuth redirect URI(s) so the user can register them
+    domains = os.environ.get("REPLIT_DOMAINS", "") or os.environ.get("REPLIT_DEV_DOMAIN", "")
+    if domains:
+        print("  Google OAuth — register THESE exact redirect URIs in", flush=True)
+        print("  Google Cloud Console → Credentials → your OAuth client:", flush=True)
+        for d in [x.strip() for x in domains.split(",") if x.strip()]:
+            print(f"     • https://{d}/auth/callback", flush=True)
+        print("═" * 60 + "\n", flush=True)
+    else:
+        print("\n", flush=True)
 
 
 # ─── Run ──────────────────────────────────────────────────────────────────────
