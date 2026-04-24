@@ -116,7 +116,22 @@
 <nav class="navbar">
   <div class="navbar-inner">
     <a href="{{ url_for('index') }}" class="navbar-brand">
-      <span class="brand-icon">💬</span>{{ t('app_name') }}
+      <span class="brand-icon brand-icon-svg" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="22" height="22">
+          <defs>
+            <linearGradient id="navBrandG" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#a855f7"/>
+              <stop offset="50%" stop-color="#38bdf8"/>
+              <stop offset="100%" stop-color="#f472b6"/>
+            </linearGradient>
+          </defs>
+          <polygon points="32,5 55,18 55,46 32,59 9,46 9,18"
+                   fill="none" stroke="url(#navBrandG)" stroke-width="2.4" opacity=".75"/>
+          <path d="M 18 32 C 18 23,28 23,32 32 C 36 41,46 41,46 32 C 46 23,36 23,32 32 C 28 41,18 41,18 32 Z"
+                fill="none" stroke="url(#navBrandG)" stroke-width="3.6" stroke-linecap="round"/>
+          <circle cx="32" cy="32" r="2.6" fill="#fff"/>
+        </svg>
+      </span>{{ t('app_name') }}
     </a>
     <div class="navbar-right">
       {% if current_student %}

@@ -338,11 +338,72 @@ LYCEES_BY_DELEGATION: dict[str, list[str]] = {
 }
 
 
+# ── Common Tunisian secondary-school name patterns ──────────────────────────
+# Lycées in Tunisia are typically named after:
+#   • the locality itself          → "Lycée <Delegation>"
+#   • a national figure            → "Lycée Habib Bourguiba", "Lycée Ibn Khaldoun"
+#   • a historical date            → "Lycée 2 Mars 1934", "Lycée 9 Avril 1938"
+#   • the type of school           → "Lycée Pilote …", "Lycée Secondaire …"
+# We use these patterns to surface 4-5 plausible options per delegation while
+# keeping any hand-curated names from LYCEES_BY_DELEGATION first in the list.
+_SCHOOL_SUFFIX_PATTERNS: list[str] = [
+    "Lycée {d}",
+    "Lycée Secondaire {d}",
+    "Lycée Ibn Khaldoun — {d}",
+    "Lycée Habib Bourguiba — {d}",
+    "Lycée 2 Mars 1934 — {d}",
+    "Lycée 9 Avril 1938 — {d}",
+]
+_PILOTE_GOVERNORATES: set[str] = set(GEODATA.keys())  # one Lycée Pilote per gov
+
+
+def _generated_schools(delegation: str) -> list[str]:
+    """Generate plausible school name candidates for a delegation."""
+    return [pat.format(d=delegation) for pat in _SCHOOL_SUFFIX_PATTERNS]
+
+
+def _governorate_for_delegation(delegation: str) -> str | None:
+    for gov, dlist in GEODATA.items():
+        if delegation in dlist:
+            return gov
+    return None
+
+
 def schools_for_delegation(delegation: str, level: str = "") -> list[str]:
-    """Return secondary schools for a delegation (+ optional level filter)."""
+    """Return secondary schools for a delegation (+ optional level filter).
+
+    Strategy:
+      1. Curated, hand-verified names (LYCEES_BY_DELEGATION) come first.
+      2. Then we add the "Lycée Pilote de <Governorate>" if the delegation
+         belongs to a known governorate (one Pilote lycée per gov).
+      3. Finally, we top up with name-pattern candidates so each dropdown
+         always shows at least 4-5 useful options instead of just one.
+    """
     if level and level != "Secondary":
         return []
-    return sorted(LYCEES_BY_DELEGATION.get(delegation, []))
+
+    seen: dict[str, str] = {}
+    out: list[str] = []
+
+    def _push(name: str) -> None:
+        key = name.strip().lower()
+        if key and key not in seen:
+            seen[key] = name
+            out.append(name)
+
+    for s in LYCEES_BY_DELEGATION.get(delegation, []):
+        _push(s)
+
+    gov = _governorate_for_delegation(delegation)
+    if gov:
+        _push(f"Lycée Pilote de {gov}")
+
+    for s in _generated_schools(delegation):
+        _push(s)
+        if len(out) >= 6:
+            break
+
+    return out
 
 
 ALL_SECONDARY_SCHOOLS: list[str] = sorted(

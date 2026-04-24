@@ -1794,7 +1794,8 @@ def ai_chat():
         return redirect(url_for("login"))
     history = session.get(AI_HISTORY_KEY, [])
     return render_template("ai_chat.html", student=student, history=history,
-                           ai_configured=_gemini_ready())
+                           ai_configured=_gemini_ready(),
+                           hf_configured=_hf_ready())
 
 
 @app.route("/ai/reset", methods=["POST"])
@@ -2604,10 +2605,16 @@ def api_focus_complete():
     return jsonify(info)
 
 
-# ─── Hugging Face Inference API (Sami v2) ────────────────────────────────────
+# ─── Hugging Face Inference Providers (Sami v3 — IT & Sport in Darija) ──────
+# Uses the modern Router endpoint (OpenAI-compatible chat completions).
+# https://huggingface.co/docs/inference-providers
 HF_API_TOKEN = os.environ.get("HUGGINGFACE_API_TOKEN", "").strip()
-HF_MODEL = os.environ.get("HF_MODEL", "meta-llama/Meta-Llama-3-8B-Instruct")
-HF_API_URL = f"https://api-inference.huggingface.co/models/{HF_MODEL}"
+HF_MODEL = os.environ.get(
+    "HF_MODEL",
+    # Strong open chat model with good multilingual + Arabic understanding
+    "meta-llama/Llama-3.1-8B-Instruct:novita",
+)
+HF_ROUTER_URL = "https://router.huggingface.co/v1/chat/completions"
 
 
 def _hf_ready() -> bool:
@@ -2617,86 +2624,88 @@ def _hf_ready() -> bool:
 def _hf_system_prompt(student: Student | None) -> str:
     bits = []
     if student:
-        if student.username:           bits.append(f"name: {student.username}")
+        if student.username:           bits.append(f"prénom: {student.username}")
         if student.educational_level:  bits.append(f"cycle: {student.educational_level}")
-        if student.class_section:      bits.append(f"class: {student.class_section}")
-        if student.school_name:        bits.append(f"school: {student.school_name}")
-        if student.region_city:        bits.append(f"city: {student.region_city}")
-    profile = " · ".join(bits) if bits else "unknown profile"
+        if student.class_section:      bits.append(f"classe: {student.class_section}")
+        if student.school_name:        bits.append(f"école: {student.school_name}")
+        if student.region_city:        bits.append(f"délégation: {student.region_city}")
+        if student.governorate:        bits.append(f"gouvernorat: {student.governorate}")
+    profile = " · ".join(bits) if bits else "profil inconnu"
     return (
-        "You are Sami — a smart Tunisian study friend on the SSAS platform. "
-        "Speak naturally to Tunisian students in a mix of Tunisian Derja and Modern Standard Arabic, "
-        "with French occasionally mixed in (the way Tunisian students actually talk). "
-        "Reply in the same language the student writes in (Arabic / French / Derja / English). "
-        f"Student profile: {profile}. "
-        "Be concise (2–4 sentences default), warm, witty, and never preachy. "
-        "When asked about school topics, give concrete, usable answers tailored to the Tunisian "
-        "system (Bac, sections, coefficients, gouvernorats). Avoid generic advice lists."
+        "إنتي Sami، الكوتش الذكي متاع SSAS — منصة تونسية للطلبة. "
+        "إختصاصك: نصايح pro في الـIT (programmation, web, mobile, IA, cybersécurité, hardware, networking) "
+        "والـSport (musculation, football, fitness, cardio, تغذية، récupération). "
+        "تكلم دايماً بالدارجة التونسية (مع كلمات فرنسية و عربية فصحى كي يلزم، كيما الطلبة التوانسة في الواقع). "
+        "إذا الطالب كتبلك بالفرنسية ولا الإنڨليزية، جاوب بنفس اللغة لكن إبقى warm و proche. "
+        f"بروفيل الطالب: {profile}. "
+        "كن مختصر (2-5 جمل بحال default) إلا كي يطلب شرح طويل. "
+        "عطي réponses concrètes، أمثلة ملموسة، code snippets كي تحتاج، programmes d'entraînement كي يلزم. "
+        "ماتعطيش نصايح générique مكررة (style « entraine-toi régulièrement », « mange équilibré »…). "
+        "كن صديق pro، مش كتاب مدرسي."
     )
 
 
-def _build_llama3_prompt(system: str, history: list[dict], user_msg: str) -> str:
-    """Build a Llama-3 chat-template prompt string."""
-    out = ["<|begin_of_text|>"]
-    out.append(f"<|start_header_id|>system<|end_header_id|>\n\n{system}<|eot_id|>")
+def _build_messages(system: str, history: list[dict], user_msg: str) -> list[dict]:
+    """Build OpenAI-compatible messages array for the Router endpoint."""
+    msgs: list[dict] = [{"role": "system", "content": system}]
     for h in history[-12:]:
         role = "user" if h.get("role") == "user" else "assistant"
         text = (h.get("text") or "")[:1200]
-        out.append(f"<|start_header_id|>{role}<|end_header_id|>\n\n{text}<|eot_id|>")
-    out.append(f"<|start_header_id|>user<|end_header_id|>\n\n{user_msg}<|eot_id|>")
-    out.append("<|start_header_id|>assistant<|end_header_id|>\n\n")
-    return "".join(out)
+        if text:
+            msgs.append({"role": role, "content": text})
+    msgs.append({"role": "user", "content": user_msg})
+    return msgs
 
 
 def _hf_generate(system: str, history: list[dict], user_msg: str,
-                 max_new_tokens: int = 400) -> tuple[str | None, str | None]:
-    """Call HF Inference API. Returns (text, error). Handles model-loading 503."""
+                 max_new_tokens: int = 500) -> tuple[str | None, str | None]:
+    """Call HF Router (OpenAI-compatible). Returns (text, error)."""
     if not _hf_ready():
         return None, "huggingface_token_missing"
-    prompt = _build_llama3_prompt(system, history, user_msg)
     headers = {"Authorization": f"Bearer {HF_API_TOKEN}",
                "Content-Type": "application/json"}
     payload = {
-        "inputs": prompt,
-        "parameters": {
-            "max_new_tokens": max_new_tokens,
-            "temperature": 0.7,
-            "top_p": 0.9,
-            "return_full_text": False,
-            "stop": ["<|eot_id|>", "<|end_of_text|>"],
-        },
-        "options": {"wait_for_model": True, "use_cache": False},
+        "model": HF_MODEL,
+        "messages": _build_messages(system, history, user_msg),
+        "max_tokens": max_new_tokens,
+        "temperature": 0.75,
+        "top_p": 0.9,
+        "stream": False,
     }
     for attempt in range(3):
         try:
-            r = requests.post(HF_API_URL, headers=headers, json=payload, timeout=60)
+            r = requests.post(HF_ROUTER_URL, headers=headers, json=payload, timeout=60)
         except requests.RequestException as e:
             return None, f"network: {e}"
         if r.status_code == 503:
-            # Model loading — wait and retry
-            try:
-                est = float(r.json().get("estimated_time", 8))
-            except Exception:
-                est = 8.0
-            time.sleep(min(est + 1, 20))
+            time.sleep(min(4 + attempt * 4, 15))
             continue
-        if r.status_code == 401 or r.status_code == 403:
+        if r.status_code in (401, 403):
             return None, "huggingface_unauthorized"
         if r.status_code == 429:
             time.sleep(2 + attempt * 2)
             continue
+        if r.status_code == 404:
+            return None, f"hf_model_not_found: {HF_MODEL}"
         if not r.ok:
             return None, f"hf_http_{r.status_code}: {r.text[:200]}"
         try:
             data = r.json()
         except Exception:
             return None, "hf_bad_json"
-        if isinstance(data, list) and data and "generated_text" in data[0]:
-            return (data[0]["generated_text"] or "").strip(), None
-        if isinstance(data, dict) and "generated_text" in data:
-            return (data["generated_text"] or "").strip(), None
+        # OpenAI-style response
+        try:
+            choice = data["choices"][0]
+            msg = choice.get("message") or {}
+            content = (msg.get("content") or "").strip()
+            if content:
+                return content, None
+        except Exception:
+            pass
         if isinstance(data, dict) and data.get("error"):
-            return None, str(data["error"])[:200]
+            err_obj = data["error"]
+            err_str = err_obj if isinstance(err_obj, str) else (err_obj.get("message") if isinstance(err_obj, dict) else str(err_obj))
+            return None, str(err_str)[:240]
         return None, "hf_unexpected"
     return None, "hf_loading_timeout"
 

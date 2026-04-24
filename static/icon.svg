@@ -1,20 +1,62 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="SSAS">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"  stop-color="#7c5cff"/>
-      <stop offset="60%" stop-color="#38bdf8"/>
-      <stop offset="100%" stop-color="#22d3ee"/>
+    <linearGradient id="ssasBg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"  stop-color="#0a0612"/>
+      <stop offset="100%" stop-color="#1a0f2a"/>
     </linearGradient>
-    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="1.6" result="b"/>
+    <linearGradient id="ssasRing" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"  stop-color="#a855f7"/>
+      <stop offset="50%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#f472b6"/>
+    </linearGradient>
+    <radialGradient id="ssasCore" cx=".5" cy=".5" r=".5">
+      <stop offset="0%"   stop-color="#ffffff"/>
+      <stop offset="35%"  stop-color="#38bdf8"/>
+      <stop offset="80%"  stop-color="rgba(124,92,255,.5)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
+    </radialGradient>
+    <filter id="ssasGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1.4" result="b"/>
       <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
-  <rect width="64" height="64" rx="14" fill="#0a0a0f"/>
-  <g filter="url(#glow)">
-    <rect x="18" y="14" width="6" height="36" rx="2" fill="url(#g)"/>
-    <path d="M24 14 h10 c12 0 18 6 18 18 s-6 18-18 18 H24 Z"
-          fill="none" stroke="url(#g)" stroke-width="6"
-          stroke-linejoin="round" stroke-linecap="round"/>
+
+  <!-- Chip background -->
+  <rect width="64" height="64" rx="16" fill="url(#ssasBg)"/>
+  <rect x="1" y="1" width="62" height="62" rx="15"
+        fill="none" stroke="url(#ssasRing)" stroke-width=".6" opacity=".55"/>
+
+  <!-- Hex frame: futuristic / tech -->
+  <polygon points="32,5 55,18 55,46 32,59 9,46 9,18"
+           fill="none" stroke="url(#ssasRing)" stroke-width="1.1" opacity=".6"/>
+
+  <!-- Connection node dots in corners -->
+  <g fill="url(#ssasRing)" opacity=".95">
+    <circle cx="32" cy="5"  r="1.6"/>
+    <circle cx="55" cy="18" r="1.6"/>
+    <circle cx="55" cy="46" r="1.6"/>
+    <circle cx="32" cy="59" r="1.6"/>
+    <circle cx="9"  cy="46" r="1.6"/>
+    <circle cx="9"  cy="18" r="1.6"/>
+  </g>
+
+  <!-- Lemniscate (∞ / connection loop) — represents AI + linking people -->
+  <g filter="url(#ssasGlow)" fill="none" stroke="url(#ssasRing)"
+     stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 18 32
+             C 18 23, 28 23, 32 32
+             C 36 41, 46 41, 46 32
+             C 46 23, 36 23, 32 32
+             C 28 41, 18 41, 18 32 Z"/>
+  </g>
+
+  <!-- Central neon spark -->
+  <circle cx="32" cy="32" r="8" fill="url(#ssasCore)" opacity=".95"/>
+  <circle cx="32" cy="32" r="1.8" fill="#ffffff" filter="url(#ssasGlow)"/>
+
+  <!-- Side orbital nodes -->
+  <g fill="#ffffff" opacity=".95">
+    <circle cx="18" cy="32" r="1.5"/>
+    <circle cx="46" cy="32" r="1.5"/>
   </g>
 </svg>
