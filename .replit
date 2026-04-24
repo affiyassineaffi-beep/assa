@@ -33,3 +33,19 @@ outputType = "webview"
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[userenv]
+
+[userenv.shared]
+GOOGLE_OAUTH_CLIENT_ID = "651083701892-0psjra6smdq4iosc9lp758me999ns56f.apps.googleusercontent.com"
+GOOGLE_OAUTH_CLIENT_SECRET = "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"
+GEMINI_API_KEY = "AIzaSyDbD1Bt8mUlHJ-yJzAMkJALYxtgutPkx2E"
+HF_MODEL = "meta-llama/Llama-3.2-1B-Instruct"
+SMTP_HOST = "smtp.gmail.com"
+SMTP_PORT = "587"
+SMTP_USER = "yyuyassine882@gmail.com"
+CLOUDINARY_CLOUD_NAME = "UWRYO"
+CLOUDINARY_API_KEY = "648875447967379"
+CLOUDINARY_API_SECRET = "-WC9uAY7m5Z3za687ALkPb-ARsY"
+ADMIN_EMAIL = "affiyassineaffi@gmail.com"
+YOUTUBE_API_KEY = "AIzaSyBYr0LVQbQh85N4RuNVHxPyXVYAvTCCosA"
