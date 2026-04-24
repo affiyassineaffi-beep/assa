@@ -16,25 +16,40 @@
     <form method="post" class="form grid-2" enctype="multipart/form-data">
       <!-- Row 1 -->
       <label class="field">
-        <span>{{ t('full_name') }}</span>
+        <span class="field-label">
+          <svg class="field-icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c1-4 5-6 8-6s7 2 8 6"/></svg>
+          {{ t('full_name') }}
+        </span>
         <input type="text" name="username" minlength="3" required autofocus/>
       </label>
       <label class="field">
-        <span>{{ t('email_label') }}</span>
+        <span class="field-label">
+          <svg class="field-icon" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/></svg>
+          {{ t('email_label') }}
+        </span>
         <input type="email" name="email" required/>
       </label>
       <!-- Row 2 -->
       <label class="field">
-        <span>{{ t('password_label') }}</span>
+        <span class="field-label">
+          <svg class="field-icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          {{ t('password_label') }}
+        </span>
         <input type="password" name="password" minlength="4" required/>
       </label>
       <label class="field">
-        <span>{{ t('phone_label') }}</span>
+        <span class="field-label">
+          <svg class="field-icon" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.22h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.06 6.06l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          {{ t('phone_label') }}
+        </span>
         <input type="tel" name="phone" placeholder="+216 XX XXX XXX"/>
       </label>
       <!-- Row 3 -->
       <label class="field">
-        <span>{{ t('edu_level') }}</span>
+        <span class="field-label">
+          <svg class="field-icon" viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+          {{ t('edu_level') }}
+        </span>
         <select name="educational_level" id="reg-level" required>
           <option value="">{{ t('select_level') }}</option>
           {% for lvl in educational_levels %}
@@ -53,7 +68,10 @@
       </label>
       <!-- Row 4 -->
       <label class="field">
-        <span>{{ t('region_city') }}</span>
+        <span class="field-label">
+          <svg class="field-icon" viewBox="0 0 24 24"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
+          {{ t('region_city') }}
+        </span>
         <select name="region_city" id="reg-region" required>
           <option value="">{{ t('select_region') }}</option>
           {% for r in regions %}
@@ -62,7 +80,10 @@
         </select>
       </label>
       <label class="field">
-        <span>{{ t('school_name') }}</span>
+        <span class="field-label">
+          <svg class="field-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          {{ t('school_name') }}
+        </span>
         <select name="school_name" id="reg-school" required>
           <option value="">{{ t('select_school') }}</option>
           {% for s in all_schools %}
@@ -77,9 +98,20 @@
           <option value="">{{ t('select_class') }}</option>
         </select>
       </label>
-      <!-- Row 6 — Gender + AI theme photo -->
+      <!-- Row 6 — Delegation + Gender -->
       <label class="field">
-        <span>Genre</span>
+        <span class="field-label">
+          <svg class="field-icon" viewBox="0 0 24 24"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
+          Délégation (المعتمدية)
+          <small class="muted">— ex. Tunis 1, Sfax 2…</small>
+        </span>
+        <input type="text" name="delegation" maxlength="120" placeholder="Ex : Tunis 1, Ben Arous, Sfax 2…"/>
+      </label>
+      <label class="field">
+        <span class="field-label">
+          <svg class="field-icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Genre
+        </span>
         <select name="gender" required>
           <option value="">— Choisir —</option>
           <option value="female">Féminin</option>
@@ -87,9 +119,12 @@
           <option value="other">Autre</option>
         </select>
       </label>
+      <!-- Row 7 — AI Theme -->
       <label class="field">
-        <span>Esthétique préférée
-          <small class="muted">— ex. Cyberpunk Neon Blue, Minimalist Black, Modern Pastel…</small>
+        <span class="field-label">
+          <svg class="field-icon" viewBox="0 0 24 24"><path d="M12 2l1.8 4.6L18 8.4l-3.6 3.2.8 4.4L12 13.6 8.8 16l.8-4.4L6 8.4l4.2-1.8z"/></svg>
+          Esthétique préférée
+          <small class="muted">— ex. Cyberpunk Neon Blue, Minimalist Black…</small>
         </span>
         <input type="text" name="interest" maxlength="80"
                list="aesthetic-suggestions"
@@ -105,14 +140,19 @@
           <option value="Monochrome White"></option>
         </datalist>
       </label>
-      <label class="field span-2">
-        <span>Photo d'inspiration (optionnel)
+      <label class="field">
+        <span class="field-label">
+          <svg class="field-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+          Photo d'inspiration
           <small class="muted">— remplace la recherche web si fournie</small>
         </span>
         <input type="file" name="theme_photo" accept="image/*"/>
       </label>
 
-      <button type="submit" class="btn btn-primary btn-full span-2">{{ t('register') }}</button>
+      <button type="submit" class="btn btn-primary btn-full span-2">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        {{ t('register') }}
+      </button>
     </form>
 
     <p class="auth-footer">{{ t('already_account') }}<a href="{{ url_for('login') }}">{{ t('login') }}</a></p>
@@ -122,14 +162,12 @@
 
 {% block scripts %}
 <script>
-// Tom Select for searchable dropdowns
 new TomSelect('#reg-level',  { allowEmptyOption:true });
 new TomSelect('#reg-region', { allowEmptyOption:true });
 new TomSelect('#reg-school', { allowEmptyOption:true });
 const classSel = new TomSelect('#reg-class',  { allowEmptyOption:true });
 new TomSelect('#reg-section',{ allowEmptyOption:true });
 
-// Show section field only for Secondary
 const levelSel = document.getElementById('reg-level');
 const sectionField = document.getElementById('section-field');
 function updateSection(){
@@ -137,7 +175,6 @@ function updateSection(){
 }
 levelSel.addEventListener('change', updateSection);
 
-// Cascade: load Tunisian grades for the selected level
 const GRADES_BY_LEVEL = {{ GRADES_BY_LEVEL | tojson }};
 function updateClasses(){
   const level = levelSel.value;
@@ -150,10 +187,8 @@ function updateClasses(){
 levelSel.addEventListener('change', updateClasses);
 updateClasses();
 
-// Dynamic school filtering by region+level
 const regionSel = document.getElementById('reg-region');
 const schoolSel = document.getElementById('reg-school').tomselect;
-
 async function updateSchools(){
   const region = document.getElementById('reg-region').value;
   const level  = document.getElementById('reg-level').value;

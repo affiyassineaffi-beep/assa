@@ -1413,3 +1413,105 @@ body.global-neon::after {
     radial-gradient(ellipse 60% 40% at 70% -10%,rgba(124,92,255,.14) 0%,transparent 70%),
     radial-gradient(ellipse 40% 30% at 10% 90%,rgba(56,189,248,.08) 0%,transparent 70%);
 }
+
+/* ── Bottom Nav Lucide Upgrade ────────────────────── */
+.bn-item {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 3px; padding: 6px 8px; border-radius: 12px;
+  color: var(--muted); text-decoration: none;
+  font-size: .68rem; font-weight: 500; transition: color .2s, background .2s;
+  position: relative;
+}
+.bn-item:hover { color: var(--primary); background: rgba(124,92,255,.08); }
+.bn-item.bn-active { color: var(--primary); }
+.bn-item.bn-active .bn-icon-wrap svg { stroke: var(--primary); }
+.bn-icon-wrap {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px;
+}
+.bn-icon-wrap svg {
+  width: 22px; height: 22px;
+  stroke: currentColor;
+  transition: stroke .2s, transform .2s;
+}
+.bn-item:hover .bn-icon-wrap svg, .bn-item.bn-active .bn-icon-wrap svg {
+  transform: scale(1.1);
+}
+.bn-center { margin-top: -14px; }
+.bn-center-icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 52px; height: 52px; border-radius: 50%;
+  background: var(--grad);
+  box-shadow: 0 0 18px rgba(124,92,255,.5);
+  transition: box-shadow .25s, transform .2s;
+}
+.bn-center-icon svg { width: 24px; height: 24px; stroke: #fff; }
+.bn-item.bn-center:hover .bn-center-icon,
+.bn-item.bn-center.bn-active .bn-center-icon {
+  box-shadow: 0 0 28px rgba(124,92,255,.8);
+  transform: scale(1.06);
+}
+.bn-dot { position: absolute; top: 4px; right: 4px; }
+
+/* ── Field Labels with Lucide Icons ───────────────── */
+.field-label {
+  display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+}
+.field-icon {
+  width: 14px; height: 14px; flex-shrink: 0;
+  fill: none; stroke: var(--primary); stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+  opacity: .8;
+}
+
+/* ── Settings Cards ───────────────────────────────── */
+.settings-heading {
+  display: flex; align-items: center; gap: 10px; margin: 0 0 4px;
+}
+.heading-icon {
+  width: 24px; height: 24px; stroke: var(--primary);
+  fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+.settings-card {
+  background: var(--surface);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 18px;
+  padding: 20px 22px;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 16px rgba(0,0,0,.12);
+}
+.settings-card-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+}
+.settings-card-header h2 {
+  margin: 0; font-size: 1rem; font-weight: 700;
+}
+.section-icon {
+  width: 20px; height: 20px; flex-shrink: 0;
+  stroke: var(--primary); fill: none; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.danger-icon { stroke: #f87171; }
+.settings-desc { margin: -8px 0 14px; font-size: .85rem; }
+.settings-form { display: flex; flex-direction: column; gap: 14px; }
+.form-row-2 {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+}
+@media (max-width: 500px) { .form-row-2 { grid-template-columns: 1fr; } }
+.profile-action-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* ── Danger Zone ──────────────────────────────────── */
+.danger-zone { border-color: rgba(248,113,113,.18); }
+.danger-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn-danger {
+  background: rgba(239,68,68,.15);
+  color: #fca5a5;
+  border: 1px solid rgba(239,68,68,.4);
+}
+.btn-danger:hover { background: rgba(239,68,68,.28); }
+
+/* ── Button with icon ─────────────────────────────── */
+.btn-icon {
+  display: inline-flex; align-items: center; gap: 7px;
+}
+.btn-icon svg { flex-shrink: 0; }

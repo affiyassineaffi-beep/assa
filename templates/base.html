@@ -183,25 +183,48 @@
 
 {% if current_student %}
 <nav class="bottom-nav glass" aria-label="Navigation principale">
-  <a href="{{ url_for('dashboard') }}" class="bn-item">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>
+  <a href="{{ url_for('dashboard') }}" class="bn-item {% if request.endpoint == 'dashboard' %}bn-active{% endif %}">
+    <span class="bn-icon-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 9l9-7 9 9v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+        <polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+    </span>
     <span>{{ t('home') if t('home') != 'home' else 'Accueil' }}</span>
   </a>
-  <a href="{{ url_for('search_page') }}" class="bn-item">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+  <a href="{{ url_for('search_page') }}" class="bn-item {% if request.endpoint == 'search_page' %}bn-active{% endif %}">
+    <span class="bn-icon-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="7"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+    </span>
     <span>{{ t('discover') if t('discover') != 'discover' else 'Découvrir' }}</span>
   </a>
-  <a href="{{ url_for('ai_chat') }}" class="bn-item bn-center">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l1.8 4.6L18 8.4l-3.6 3.2L15.2 16 12 13.6 8.8 16l.8-4.4L6 8.4l4.2-1.8z"/></svg>
-    <span>Sami</span>
+  <a href="{{ url_for('ai_chat') }}" class="bn-item bn-center {% if request.endpoint == 'ai_chat' %}bn-active{% endif %}">
+    <span class="bn-center-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2l1.8 4.6L18 8.4l-3.6 3.2.8 4.4L12 13.6 8.8 16l.8-4.4L6 8.4l4.2-1.8z"/>
+      </svg>
+    </span>
+    <span>Sami AI</span>
   </a>
-  <a href="{{ url_for('messages') }}" class="bn-item">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 11-3.5-6.6L21 4l-1.4 3.5A7.96 7.96 0 0121 12z"/></svg>
+  <a href="{{ url_for('messages') }}" class="bn-item {% if request.endpoint == 'messages' %}bn-active{% endif %}">
+    <span class="bn-icon-wrap" style="position:relative">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      {% if unread_count > 0 %}<span class="bn-dot badge-dot">{{ unread_count }}</span>{% endif %}
+    </span>
     <span>{{ t('messages') }}</span>
-    {% if unread_count > 0 %}<span class="bn-dot badge-dot">{{ unread_count }}</span>{% endif %}
   </a>
-  <a href="{{ url_for('settings_page') }}" class="bn-item">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 5-6 8-6s7 2 8 6"/></svg>
+  <a href="{{ url_for('settings_page') }}" class="bn-item {% if request.endpoint == 'settings_page' %}bn-active{% endif %}">
+    <span class="bn-icon-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="8" r="4"/>
+        <path d="M4 20c1-4 5-6 8-6s7 2 8 6"/>
+      </svg>
+    </span>
     <span>{{ t('profile') }}</span>
   </a>
 </nav>

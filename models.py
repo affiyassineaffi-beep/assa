@@ -51,6 +51,7 @@ class Student(db.Model):
     avatar_url = db.Column(db.String(500), nullable=True)
 
     is_admin = db.Column(db.Integer, nullable=False, default=0)
+    delegation = db.Column(db.String(120), nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 

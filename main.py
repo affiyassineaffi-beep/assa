@@ -538,6 +538,7 @@ def _ensure_schema():
             ("password_reset_token",   "ALTER TABLE students ADD COLUMN password_reset_token VARCHAR(80)"),
             ("password_reset_expires", "ALTER TABLE students ADD COLUMN password_reset_expires DATETIME"),
             ("is_admin",               "ALTER TABLE students ADD COLUMN is_admin INTEGER DEFAULT 0"),
+            ("delegation",             "ALTER TABLE students ADD COLUMN delegation VARCHAR(120)"),
         ]:
             if col not in scols:
                 db.session.execute(text(ddl))
@@ -639,6 +640,7 @@ def register():
         #      images and let Gemini design a theme from them.
         #   3) Else, use the gender default.
         interest = (request.form.get("interest") or "").strip()
+        delegation_for_theme = (request.form.get("delegation") or "").strip()
         theme_obj = dict(DEFAULT_THEMES.get(gender, DEFAULT_THEMES["other"]))
         photo = request.files.get("theme_photo")
         if photo and photo.filename:
@@ -646,15 +648,16 @@ def register():
                 img_bytes = photo.read()
                 if img_bytes:
                     mime = photo.mimetype or "image/jpeg"
-                    theme_obj = generate_theme_from_image(img_bytes, mime, gender)
+                    theme_obj = generate_theme_from_image(img_bytes, mime, gender, delegation=delegation_for_theme)
             except Exception as exc:
                 print(f"[theme] upload failed: {exc}", flush=True)
         elif interest:
             try:
-                theme_obj = generate_theme_from_interest(interest, gender)
+                theme_obj = generate_theme_from_interest(interest, gender, delegation=delegation_for_theme)
             except Exception as exc:
                 print(f"[theme] interest gen failed: {exc}", flush=True)
 
+        delegation = (request.form.get("delegation") or "").strip()
         student = Student(
             username=username, email=email,
             password_hash=generate_password_hash(password),
@@ -663,6 +666,7 @@ def register():
             is_active=0, email_verified=0,
             email_verify_token=secrets.token_urlsafe(32),
             gender=gender,
+            delegation=delegation or None,
             custom_theme=_json.dumps(theme_obj),
         )
         db.session.add(student)
@@ -1566,7 +1570,8 @@ def _fetch_web_images(query: str, count: int = 3) -> list[tuple[bytes, str]]:
     return out
 
 
-def generate_theme_from_interest(interest: str, gender: str) -> dict:
+def generate_theme_from_interest(interest: str, gender: str,
+                                  delegation: str = "") -> dict:
     """AI-enhanced theme: search the web for images matching the user's interest,
     feed them to Gemini Vision, and return a custom theme.
 
@@ -1584,8 +1589,9 @@ def generate_theme_from_interest(interest: str, gender: str) -> dict:
     deco_hint = ("stars, waves or geometric" if gender == "female"
                  else "grid, geometric or waves" if gender == "male"
                  else "any tasteful decoration")
+    location_hint = f" from the delegation of {delegation} (Tunisia)" if delegation else ""
     prompt = (
-        f"The user (gender: {gender or 'unspecified'}) is interested in: "
+        f"The user (gender: {gender or 'unspecified'}{location_hint}) is interested in: "
         f"\"{interest}\". Analyze the mood, dominant colors and aesthetic of "
         "the attached inspiration images and design ONE cohesive UI color "
         "theme that captures that vibe. Prefer decorations like " + deco_hint
@@ -1614,7 +1620,7 @@ def generate_theme_from_interest(interest: str, gender: str) -> dict:
 
 
 def generate_theme_from_image(image_bytes: bytes, mime_type: str,
-                              gender: str) -> dict:
+                              gender: str, delegation: str = "") -> dict:
     """Use Gemini Vision to extract a custom theme from a user-uploaded image.
 
     Falls back to a gender-based default theme if Gemini is unavailable
@@ -1627,10 +1633,11 @@ def generate_theme_from_image(image_bytes: bytes, mime_type: str,
     deco_hint = ("stars, waves or geometric" if gender == "female"
                  else "grid, geometric or waves" if gender == "male"
                  else "any tasteful decoration")
+    location_hint = f" The user is from {delegation} (Tunisia)." if delegation else ""
     prompt = (
         "Analyze this image and propose a UI color theme that matches its "
         "mood and dominant colors. The user's gender is "
-        f"'{gender or 'unspecified'}'. Prefer decorations like " + deco_hint
+        f"'{gender or 'unspecified'}'.{location_hint} Prefer decorations like " + deco_hint
         + ". Return ONLY a compact JSON object with exactly these keys "
         '(no markdown): {"primary":"#hex","accent":"#hex","bg":"#hex",'
         '"surface":"#hex","text":"#hex","muted":"#hex","decoration":"<one '
@@ -1944,7 +1951,7 @@ def settings_page():
                 session["username"] = new_name
             # Allow updating school/level/class via the same form (optional)
             for field in ("educational_level", "region_city", "school_name",
-                          "class_section", "section", "phone"):
+                          "class_section", "section", "phone", "delegation"):
                 val = (request.form.get(field) or "").strip()
                 if val:
                     setattr(student, field, val)
@@ -1957,6 +1964,9 @@ def settings_page():
             if new_gender not in {"female", "male", "other"}:
                 new_gender = "other"
             student.gender = new_gender
+            new_delegation = (request.form.get("delegation") or "").strip()
+            if new_delegation:
+                student.delegation = new_delegation
             interest = (request.form.get("interest") or "").strip()
             photo = request.files.get("theme_photo")
             theme_obj = dict(DEFAULT_THEMES.get(new_gender, DEFAULT_THEMES["other"]))
@@ -1965,9 +1975,11 @@ def settings_page():
                     img_bytes = photo.read()
                     if img_bytes:
                         mime = photo.mimetype or "image/jpeg"
-                        theme_obj = generate_theme_from_image(img_bytes, mime, new_gender)
+                        theme_obj = generate_theme_from_image(img_bytes, mime, new_gender,
+                                                              delegation=student.delegation or "")
                 elif interest:
-                    theme_obj = generate_theme_from_interest(interest, new_gender)
+                    theme_obj = generate_theme_from_interest(interest, new_gender,
+                                                             delegation=student.delegation or "")
             except Exception as exc:
                 print(f"[theme] regen failed: {exc}", flush=True)
                 flash("Analyse impossible — thème par défaut appliqué.", "error")
