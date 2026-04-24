@@ -142,9 +142,18 @@
   async function startCaller(){
     if (!await getMedia()) return;
     newPC();
+    // Notify the callee — but DO NOT send the offer yet.  We wait for the
+    // callee's call.html to load, create its PC, and send back a
+    // 'ready' signal so the offer never arrives before the callee is
+    // listening for it.
+    socket.emit('call_invite', { peer_id: peerId, mode });
+    setStatus('Sonnerie…');
+  }
+
+  async function sendOffer(){
+    if (!pc) return;
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-    socket.emit('call_invite', { peer_id: peerId, mode });
     socket.emit('call_signal', { peer_id: peerId, kind: 'offer', data: offer });
     setStatus('En attente de réponse…');
   }
@@ -152,6 +161,8 @@
   async function startCallee(){
     if (!await getMedia()) return;
     newPC();
+    // Tell the caller we're ready to receive their offer.
+    socket.emit('call_signal', { peer_id: peerId, kind: 'ready' });
     setStatus('Connexion…');
   }
 
@@ -163,7 +174,10 @@
   socket.on('call_signal', async (msg) => {
     if (msg.from_user_id !== peerId) return;
     if (!pc) return;
-    if (msg.kind === 'offer'){
+    if (msg.kind === 'ready'){
+      // Callee has loaded their call page and is ready — send the offer now.
+      if (role === 'caller') await sendOffer();
+    } else if (msg.kind === 'offer'){
       await pc.setRemoteDescription(new RTCSessionDescription(msg.data));
       remoteDescSet = true;
       const ans = await pc.createAnswer();
