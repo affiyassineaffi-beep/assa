@@ -116,7 +116,7 @@
 <nav class="navbar">
   <div class="navbar-inner">
     <a href="{{ url_for('index') }}" class="navbar-brand">
-      <span class="brand-icon">📚</span>{{ t('app_name') }}
+      <span class="brand-icon">💬</span>{{ t('app_name') }}
     </a>
     <div class="navbar-right">
       {% if current_student %}
@@ -196,22 +196,24 @@
     </span>
     <span>{{ t('discover') if t('discover') != 'discover' else 'Découvrir' }}</span>
   </a>
-  <a href="{{ url_for('ai_chat') }}" class="bn-item bn-center {% if request.endpoint == 'ai_chat' %}bn-active{% endif %}">
-    <span class="bn-center-icon">
+  {# Center accent: Messages — Instagram-style paper-plane DM button #}
+  <a href="{{ url_for('messages') }}" class="bn-item bn-center {% if request.endpoint == 'messages' %}bn-active{% endif %}">
+    <span class="bn-center-icon" style="position:relative">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"/>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+      </svg>
+      {% if unread_count > 0 %}<span class="bn-dot badge-dot">{{ unread_count }}</span>{% endif %}
+    </span>
+    <span>{{ t('messages') }}</span>
+  </a>
+  <a href="{{ url_for('ai_chat') }}" class="bn-item {% if request.endpoint == 'ai_chat' %}bn-active{% endif %}">
+    <span class="bn-icon-wrap">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 2l1.8 4.6L18 8.4l-3.6 3.2.8 4.4L12 13.6 8.8 16l.8-4.4L6 8.4l4.2-1.8z"/>
       </svg>
     </span>
     <span>Sami AI</span>
-  </a>
-  <a href="{{ url_for('messages') }}" class="bn-item {% if request.endpoint == 'messages' %}bn-active{% endif %}">
-    <span class="bn-icon-wrap" style="position:relative">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-      </svg>
-      {% if unread_count > 0 %}<span class="bn-dot badge-dot">{{ unread_count }}</span>{% endif %}
-    </span>
-    <span>{{ t('messages') }}</span>
   </a>
   <a href="{{ url_for('settings_page') }}" class="bn-item {% if request.endpoint == 'settings_page' %}bn-active{% endif %}">
     <span class="bn-icon-wrap">

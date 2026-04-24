@@ -2024,3 +2024,103 @@ select#stg-school:focus, select[name="gender"]:focus {
   box-shadow: 0 0 0 2px rgba(56,189,248,.18), 0 0 18px rgba(56,189,248,.12);
   outline: none;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CHAT-FIRST PIVOT — Instagram-style accents
+   - Messages becomes the prominent center bottom-nav button (warm gradient)
+   - Dashboard chat-strip card for "Discussions" preview
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Center DM button — Instagram-style gradient */
+.bn-item.bn-center .bn-center-icon {
+  background: linear-gradient(135deg, #feda77 0%, #f58529 25%, #dd2a7b 55%, #8134af 80%, #515bd4 100%);
+  box-shadow: 0 6px 18px rgba(221,42,123,.45), 0 0 22px rgba(245,133,41,.35);
+}
+.bn-item.bn-center:hover .bn-center-icon,
+.bn-item.bn-center.bn-active .bn-center-icon {
+  box-shadow: 0 8px 24px rgba(221,42,123,.65), 0 0 30px rgba(245,133,41,.55);
+}
+
+/* Recent chats preview (dashboard) */
+.chat-strip-card {
+  margin: 14px 0;
+  padding: 14px 14px 6px;
+  border-radius: 18px;
+}
+.chat-strip-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 4px 8px;
+}
+.chat-strip-title {
+  margin: 0; font-size: 16px; font-weight: 800; letter-spacing: .2px;
+  background: linear-gradient(135deg,#feda77,#dd2a7b,#515bd4);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; color: transparent;
+}
+.chat-strip-link {
+  font-size: 12.5px; font-weight: 700; opacity: .75;
+  text-decoration: none; color: inherit;
+}
+.chat-strip-link:hover { opacity: 1; }
+.chat-strip-list { list-style: none; margin: 0; padding: 0; }
+.chat-strip-list li + li { border-top: 1px solid rgba(255,255,255,.06); }
+.chat-strip-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 6px; border-radius: 12px;
+  text-decoration: none; color: inherit;
+  transition: background .15s;
+}
+.chat-strip-row:hover { background: rgba(255,255,255,.05); }
+.chat-strip-avatar {
+  position: relative; flex: 0 0 auto;
+  width: 44px; height: 44px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 800; font-size: 16px;
+  overflow: hidden;
+  box-shadow: 0 0 0 2px rgba(255,255,255,.08), 0 4px 10px rgba(0,0,0,.25);
+  /* Instagram-style ring on avatars */
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  background-clip: padding-box;
+}
+.chat-strip-row:hover .chat-strip-avatar {
+  outline: 2px solid transparent;
+  background-image: linear-gradient(currentColor,currentColor),
+    linear-gradient(135deg,#feda77,#f58529,#dd2a7b,#8134af,#515bd4);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+.chat-strip-avatar img {
+  width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
+}
+.chat-strip-dot {
+  position: absolute; bottom: 1px; right: 1px;
+  width: 11px; height: 11px; border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 2px rgba(20,20,30,.95);
+}
+.chat-strip-meta {
+  display: flex; flex-direction: column; min-width: 0; flex: 1;
+}
+.chat-strip-name {
+  font-size: 14.5px; font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.chat-strip-snippet {
+  font-size: 13px; opacity: .7;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.chat-strip-snippet.is-unread { opacity: 1; font-weight: 600; }
+.chat-strip-unread {
+  flex: 0 0 auto;
+  min-width: 22px; height: 22px; padding: 0 7px;
+  border-radius: 11px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11.5px; font-weight: 800; color: #fff;
+  background: linear-gradient(135deg,#dd2a7b,#f58529);
+  box-shadow: 0 4px 10px rgba(221,42,123,.45);
+}
+.chat-strip-empty {
+  padding: 14px 6px 16px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+}

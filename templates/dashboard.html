@@ -36,6 +36,59 @@
     <a class="btn btn-secondary" href="{{ url_for('complete_profile') }}">{{ t('update_profile') }}</a>
   </section>
 
+  <!-- ── Instagram-style chat strip (chat-first surface) ────────────────── -->
+  <section class="chat-strip-card glass">
+    <div class="chat-strip-header">
+      <h2 class="chat-strip-title">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round" style="vertical-align:-4px;margin-inline-end:6px">
+          <line x1="22" y1="2" x2="11" y2="13"/>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+        Discussions
+      </h2>
+      <a class="chat-strip-link" href="{{ url_for('messages') }}">Voir tout →</a>
+    </div>
+
+    {% if recent_chats %}
+      <ul class="chat-strip-list">
+        {% for c in recent_chats %}
+          <li>
+            <a class="chat-strip-row" href="{{ url_for('chat', peer_id=c.peer.id) }}">
+              <span class="chat-strip-avatar"
+                    style="background:{{ school_badge_color(c.peer.school_name or '') }}">
+                {% if c.peer.avatar_url %}
+                  <img src="{{ c.peer.avatar_url }}" alt="">
+                {% else %}
+                  {{ (c.peer.username or '?')[0]|upper }}
+                {% endif %}
+                {% if c.unread %}<span class="chat-strip-dot"></span>{% endif %}
+              </span>
+              <span class="chat-strip-meta">
+                <strong class="chat-strip-name">{{ c.peer.username }}</strong>
+                <span class="chat-strip-snippet {% if c.unread %}is-unread{% endif %}">
+                  {% if c.last.sender_id == student.id %}Vous : {% endif %}
+                  {{ (c.last.body or '')[:60] }}{% if (c.last.body or '')|length > 60 %}…{% endif %}
+                </span>
+              </span>
+              {% if c.unread %}
+                <span class="chat-strip-unread">{{ c.unread }}</span>
+              {% endif %}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="chat-strip-empty">
+        <p class="muted" style="margin:0 0 10px">Aucune discussion pour le moment.</p>
+        <a class="btn btn-primary btn-sm" href="{{ url_for('messages') }}">
+          ✨ Démarrer une conversation
+        </a>
+      </div>
+    {% endif %}
+  </section>
+
   <!-- Quick actions: gamification + study tools -->
   <section class="card glass" style="padding:16px;margin:14px 0;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
     <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:200px">

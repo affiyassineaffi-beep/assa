@@ -68,3 +68,11 @@ Delegation (reg-delegation) → Schools (reg-school) via /api/schools
 - `GOOGLE_OAUTH_CLIENT_ID/SECRET` — Google login
 - `SMTP_*` (3 vars) — Email verification
 - `ADMIN_EMAIL` — Admin notifications
+
+## Chat-First Pivot (Apr 2026)
+SSAS now leads with messaging instead of grades:
+- **Intro splash** (`templates/_intro_splash.html`) renders the real `static/img/app_icon.png` speech-bubble logo (matches launcher); halo + wordmark use the warm Instagram gradient (amber → pink → purple → blue).
+- **Navbar brand** emoji is 💬 (was 📚).
+- **Bottom nav center button** is now Messages with an Instagram-style gradient pill + paper-plane icon. Sami AI moved off-center.
+- **Dashboard** (`templates/dashboard.html`) shows a "Discussions" preview card above grades, fed by `recent_chats = _conversations_for(student)[:6]` in the `dashboard` route.
+- New CSS block at the end of `static/styles.css` (`CHAT-FIRST PIVOT`) styles `.chat-strip-*` and overrides `.bn-center-icon` gradient.

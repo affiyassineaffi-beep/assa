@@ -5,58 +5,13 @@
   <canvas id="ssas-intro-particles"></canvas>
   <div id="ssas-intro-glow"></div>
 
-  <!-- Neon "D" Logo -->
+  <!-- App icon (speech-bubble logo, matches launcher icon) -->
   <div id="ssas-intro-logo">
-    <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="neonGrad" x1="0" y1="0" x2="200" y2="200" gradientUnits="userSpaceOnUse">
-          <stop offset="0%"   stop-color="#7c5cff"/>
-          <stop offset="50%"  stop-color="#38bdf8"/>
-          <stop offset="100%" stop-color="#7c5cff"/>
-        </linearGradient>
-        <filter id="neonGlow" x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur1"/>
-          <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="blur2"/>
-          <feMerge>
-            <feMergeNode in="blur2"/>
-            <feMergeNode in="blur1"/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
-        </filter>
-        <filter id="neonGlowOuter" x="-60%" y="-60%" width="220%" height="220%">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="20" result="blur"/>
-          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-      </defs>
-      <!-- Outer hex ring -->
-      <polygon points="100,10 175,52 175,148 100,190 25,148 25,52"
-               stroke="url(#neonGrad)" stroke-width="1.5" fill="none" opacity=".3"
-               filter="url(#neonGlowOuter)"/>
-      <!-- Inner hex ring -->
-      <polygon points="100,30 158,63 158,137 100,170 42,137 42,63"
-               stroke="url(#neonGrad)" stroke-width="1" fill="none" opacity=".15"/>
-      <!-- The "D" letterform -->
-      <g filter="url(#neonGlow)">
-        <!-- Vertical stroke -->
-        <rect x="62" y="44" width="14" height="112" rx="4" fill="url(#neonGrad)"/>
-        <!-- Curved right side of D -->
-        <path d="M76 44 h24 c34 0 48 18 48 56 s-14 56-48 56 H76 Z"
-              fill="none" stroke="url(#neonGrad)" stroke-width="14"
-              stroke-linejoin="round" stroke-linecap="round"/>
-        <!-- Inner fill accent -->
-        <path d="M76 58 h20 c24 0 34 12 34 42 s-10 42-34 42 H76 Z"
-              fill="url(#neonGrad)" opacity=".12"/>
-      </g>
-      <!-- Corner dots (circuit-board style) -->
-      <circle cx="100" cy="10"  r="3" fill="#38bdf8" opacity=".7" filter="url(#neonGlow)"/>
-      <circle cx="175" cy="52"  r="3" fill="#7c5cff" opacity=".7" filter="url(#neonGlow)"/>
-      <circle cx="175" cy="148" r="3" fill="#38bdf8" opacity=".7" filter="url(#neonGlow)"/>
-      <circle cx="100" cy="190" r="3" fill="#7c5cff" opacity=".7" filter="url(#neonGlow)"/>
-      <circle cx="25"  cy="148" r="3" fill="#38bdf8" opacity=".7" filter="url(#neonGlow)"/>
-      <circle cx="25"  cy="52"  r="3" fill="#7c5cff" opacity=".7" filter="url(#neonGlow)"/>
-    </svg>
+    <img id="ssas-intro-img"
+         src="{{ url_for('static', filename='img/app_icon.png') }}"
+         alt="SSAS" draggable="false"/>
     <div id="ssas-intro-wordmark">SSAS</div>
-    <div id="ssas-intro-sub">Plateforme Académique</div>
+    <div id="ssas-intro-sub">Discussions · Études · Communauté</div>
   </div>
 
   <!-- Scanlines overlay -->
@@ -84,14 +39,20 @@
     position:absolute;inset:0;width:100%;height:100%;display:block;opacity:.9;
   }
 
-  /* Neon halo behind the D */
+  /* Warm halo behind the icon — Instagram-DM gradient (purple→pink→amber) */
   #ssas-intro-glow{
     position:absolute;left:50%;top:50%;
     width:70vmin;height:70vmin;
     transform:translate(-50%,-50%) scale(.1);
     border-radius:50%;
-    background:radial-gradient(circle,rgba(124,92,255,.6) 0%,rgba(56,189,248,.3) 35%,transparent 70%);
-    filter:blur(20px);
+    background:
+      radial-gradient(circle at 50% 50%,
+        rgba(255,180,80,.55) 0%,
+        rgba(236,89,153,.45) 30%,
+        rgba(140,90,255,.40) 55%,
+        rgba(56,189,248,.20) 75%,
+        transparent 90%);
+    filter:blur(24px);
     animation: ssasIntroGlow 3.6s cubic-bezier(.2,.7,.2,1) forwards;
   }
   @keyframes ssasIntroGlow{
@@ -109,17 +70,19 @@
     opacity:0;transform:scale(.5) translateY(20px);
     animation: ssasIntroLogo 3.6s cubic-bezier(.2,.7,.2,1) forwards;
   }
-  #ssas-intro-logo svg{
-    width: clamp(120px,28vmin,200px);
-    height:auto;
-    filter:drop-shadow(0 0 0 rgba(124,92,255,0));
+  #ssas-intro-img{
+    width: clamp(140px,32vmin,220px);
+    height:auto;display:block;border-radius:32px;
+    user-select:none;-webkit-user-drag:none;
+    filter:drop-shadow(0 0 0 rgba(255,180,80,0));
     animation: ssasNeonPulse 3.6s cubic-bezier(.2,.7,.2,1) forwards;
   }
   @keyframes ssasNeonPulse{
-    0%  { filter:drop-shadow(0 0 0 rgba(124,92,255,0)); }
-    50% { filter:drop-shadow(0 0 40px rgba(124,92,255,1)) drop-shadow(0 0 80px rgba(56,189,248,.7)); }
-    75% { filter:drop-shadow(0 0 24px rgba(124,92,255,.7)); }
-    100%{ filter:drop-shadow(0 0 18px rgba(56,189,248,.55)); }
+    0%  { filter:drop-shadow(0 0 0 rgba(255,180,80,0)); }
+    50% { filter:drop-shadow(0 0 38px rgba(236,89,153,.95))
+                 drop-shadow(0 0 70px rgba(255,180,80,.65)); }
+    75% { filter:drop-shadow(0 0 24px rgba(140,90,255,.7)); }
+    100%{ filter:drop-shadow(0 0 18px rgba(236,89,153,.55)); }
   }
   @keyframes ssasIntroLogo{
     0%  { opacity:0; transform:scale(.5) translateY(20px); }
@@ -129,21 +92,21 @@
     100%{ opacity:1; transform:scale(1.0) translateY(0); }
   }
 
-  /* Wordmark */
+  /* Wordmark — Instagram-style warm gradient */
   #ssas-intro-wordmark{
     font-family:'Cairo',system-ui,sans-serif;
-    font-size:clamp(28px,6vmin,48px);font-weight:900;letter-spacing:.15em;
-    background:linear-gradient(135deg,#7c5cff,#38bdf8,#7c5cff);
-    background-size:200% 100%;
+    font-size:clamp(28px,6vmin,48px);font-weight:900;letter-spacing:.18em;
+    background:linear-gradient(135deg,#feda77,#f58529,#dd2a7b,#8134af,#515bd4);
+    background-size:240% 100%;
     -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-    animation: ssasGradientShift 3s linear infinite;
+    animation: ssasGradientShift 4s linear infinite;
     text-transform:uppercase;
   }
   #ssas-intro-sub{
     font-family:'Cairo',system-ui,sans-serif;
-    font-size:clamp(10px,2vmin,14px);font-weight:600;
-    letter-spacing:.35em;text-transform:uppercase;
-    color:rgba(56,189,248,.6);
+    font-size:clamp(11px,2vmin,14px);font-weight:600;
+    letter-spacing:.18em;text-transform:none;
+    color:rgba(255,200,160,.75);
     animation: ssasSubFade 3.6s forwards;
   }
   @keyframes ssasGradientShift{ to{ background-position:-200% 0; } }
@@ -203,7 +166,7 @@
   window.addEventListener('resize', resize, {passive:true});
 
   var N=90, particles=[];
-  var COLORS=['rgba(124,92,255,','rgba(56,189,248,','rgba(255,255,255,'];
+  var COLORS=['rgba(254,218,119,','rgba(221,42,123,','rgba(129,52,175,','rgba(255,255,255,'];
   for(var i=0;i<N;i++){
     particles.push({
       x:Math.random()*canvas.width, y:Math.random()*canvas.height,

@@ -974,6 +974,10 @@ def dashboard():
     avg_data = compute_average(entries)
     mentor_tips = generate_mentor_advice(entries, get_lang())
 
+    # Recent direct conversations — surfaced at the top of the dashboard
+    # so the experience is chat-first (Instagram-DM style), not just grades.
+    recent_chats = _conversations_for(student)[:6]
+
     return render_template(
         "dashboard.html",
         student=student,
@@ -981,6 +985,7 @@ def dashboard():
         subjects=subjects,
         avg_data=avg_data,
         mentor_tips=mentor_tips,
+        recent_chats=recent_chats,
     )
 
 
