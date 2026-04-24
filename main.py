@@ -2902,6 +2902,59 @@ def logout():
     return redirect(url_for("index"))
 
 
+# ─── Global error handlers (graceful "Setup Required" instead of crashes) ────
+def _audit_missing_secrets() -> list[str]:
+    """Return a friendly list of secrets that look unset, for the error page."""
+    candidates = {
+        "SESSION_SECRET":              "Flask session encryption",
+        "GOOGLE_OAUTH_CLIENT_ID":      "Google login",
+        "GOOGLE_OAUTH_CLIENT_SECRET":  "Google login",
+        "GEMINI_API_KEY":              "AI Mentor (Gemini)",
+        "HUGGINGFACE_API_TOKEN":       "AI fallback",
+        "SMTP_HOST":                   "Email verification",
+        "SMTP_USER":                   "Email verification",
+        "SMTP_PASSWORD":               "Email verification",
+        "CLOUDINARY_CLOUD_NAME":       "Avatar storage",
+        "CLOUDINARY_API_KEY":          "Avatar storage",
+        "CLOUDINARY_API_SECRET":       "Avatar storage",
+        "FIREBASE_STORAGE_BUCKET":     "Video storage",
+        "FIREBASE_SERVICE_ACCOUNT_JSON": "Video storage",
+    }
+    return [k for k in candidates if not os.environ.get(k, "").strip()]
+
+
+@app.errorhandler(404)
+def _err_404(_e):
+    return render_template(
+        "error.html",
+        badge="404",
+        title="Page not found",
+        message="The page you’re looking for doesn’t exist or has been moved.",
+        show_retry=False,
+    ), 404
+
+
+@app.errorhandler(500)
+@app.errorhandler(Exception)
+def _err_500(e):
+    # Let Werkzeug handle HTTP errors that already have a status code (e.g. 401, 403)
+    from werkzeug.exceptions import HTTPException
+    if isinstance(e, HTTPException) and e.code and e.code != 500:
+        return e
+    print(f"[error-handler] Unhandled exception: {e}", flush=True)
+    missing = _audit_missing_secrets()
+    return render_template(
+        "error.html",
+        badge="Setup Required" if missing else "Service Unavailable",
+        title="Something went wrong on the server",
+        message=("This feature needs a secret that isn’t set yet. "
+                 "Add the missing keys below in Replit → Tools → Secrets, "
+                 "then refresh."),
+        missing_keys=missing,
+        show_retry=True,
+    ), 500
+
+
 # ─── Run ──────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     Path("data").mkdir(exist_ok=True)
