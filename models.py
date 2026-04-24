@@ -52,6 +52,7 @@ class Student(db.Model):
 
     is_admin = db.Column(db.Integer, nullable=False, default=0)
     delegation = db.Column(db.String(120), nullable=True)
+    governorate = db.Column(db.String(120), nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 

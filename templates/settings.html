@@ -20,28 +20,35 @@
     <p class="muted settings-desc">L'IA analyse ton genre, ta délégation et ton esthétique pour générer tes couleurs et motifs personnalisés.</p>
     <form method="post" enctype="multipart/form-data" class="form settings-form">
       <input type="hidden" name="action" value="regen_theme"/>
-      <div class="form-row-2">
-        <label class="field">
-          <span class="field-label">
-            <svg class="field-icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-            Genre
-          </span>
-          <select name="gender">
-            <option value="female" {% if student.gender == 'female' %}selected{% endif %}>Féminin</option>
-            <option value="male"   {% if student.gender == 'male'   %}selected{% endif %}>Masculin</option>
-            <option value="other"  {% if not student.gender or student.gender == 'other' %}selected{% endif %}>Autre</option>
-          </select>
-        </label>
-        <label class="field">
-          <span class="field-label">
-            <svg class="field-icon" viewBox="0 0 24 24"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
-            Délégation (المعتمدية)
-          </span>
-          <input type="text" name="delegation"
-                 value="{{ student.delegation or '' }}"
-                 placeholder="Ex : Tunis 1, Ben Arous, Sfax 2…" maxlength="120"/>
-        </label>
-      </div>
+      <label class="field">
+        <span class="field-label">
+          <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          Genre (الجنس)
+        </span>
+        <div class="glass-pills">
+          <label class="glass-pill">
+            <input type="radio" name="gender" value="female" {% if student.gender == 'female' %}checked{% endif %}/>
+            <span>
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M12 12v8M9 18h6"/></svg>
+              Féminin
+            </span>
+          </label>
+          <label class="glass-pill">
+            <input type="radio" name="gender" value="male" {% if student.gender == 'male' %}checked{% endif %}/>
+            <span>
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="14" r="4"/><path d="m21 3-6 6M21 3h-5M21 3v5"/></svg>
+              Masculin
+            </span>
+          </label>
+          <label class="glass-pill">
+            <input type="radio" name="gender" value="other" {% if not student.gender or student.gender == 'other' %}checked{% endif %}/>
+            <span>
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>
+              Autre
+            </span>
+          </label>
+        </div>
+      </label>
       <label class="field">
         <span class="field-label">
           <svg class="field-icon" viewBox="0 0 24 24"><path d="M12 2l1.8 4.6L18 8.4l-3.6 3.2.8 4.4L12 13.6 8.8 16l.8-4.4L6 8.4l4.2-1.8z"/></svg>
@@ -108,12 +115,26 @@
         </div>
       </label>
       <label class="field">
-        <span>{{ t('language') }}</span>
-        <select name="language">
-          <option value="fr" {% if student.language == 'fr' %}selected{% endif %}>🇫🇷 Français</option>
-          <option value="ar" {% if student.language == 'ar' %}selected{% endif %}>🇹🇳 العربية</option>
-          <option value="en" {% if student.language == 'en' %}selected{% endif %}>🇬🇧 English</option>
-        </select>
+        <span class="field-label">
+          <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
+          {{ t('language') }}
+        </span>
+        <div class="glass-pills lang-pills">
+          {% set langs = [
+            ('fr', '🇫🇷', 'Français'),
+            ('ar', '🇹🇳', 'العربية'),
+            ('en', '🇬🇧', 'English'),
+            ('de', '🇩🇪', 'Deutsch'),
+            ('es', '🇪🇸', 'Español'),
+            ('it', '🇮🇹', 'Italiano'),
+          ] %}
+          {% for code, flag, label in langs %}
+            <label class="glass-pill">
+              <input type="radio" name="language" value="{{ code }}" {% if student.language == code %}checked{% endif %}/>
+              <span>{{ flag }} {{ label }}</span>
+            </label>
+          {% endfor %}
+        </div>
       </label>
       <button type="submit" class="btn btn-primary btn-icon">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -224,12 +245,13 @@
         </label>
         <label class="field">
           <span class="field-label">
-            <svg class="field-icon" viewBox="0 0 24 24"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
-            {{ t('region_city') }}
+            <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
+            Gouvernorat (الولاية)
           </span>
-          <select name="region_city">
-            {% for r in regions %}
-              <option value="{{ r }}" {% if student.region_city == r %}selected{% endif %}>{{ r }}</option>
+          <select name="governorate" id="stg-governorate">
+            <option value="">— Choisir —</option>
+            {% for g in governorates %}
+              <option value="{{ g }}" {% if student.governorate == g %}selected{% endif %}>{{ g }}</option>
             {% endfor %}
           </select>
         </label>
@@ -237,22 +259,27 @@
       <div class="form-row-2">
         <label class="field">
           <span class="field-label">
-            <svg class="field-icon" viewBox="0 0 24 24"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
+            <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
             Délégation (المعتمدية)
           </span>
-          <input type="text" name="delegation"
-                 value="{{ student.delegation or '' }}"
-                 placeholder="Ex : Tunis 1, Ben Arous, Sfax 2…" maxlength="120"/>
+          <select name="region_city" id="stg-delegation">
+            <option value="">— Choisir —</option>
+            {% if student.region_city %}
+              <option value="{{ student.region_city }}" selected>{{ student.region_city }}</option>
+            {% endif %}
+          </select>
         </label>
         <label class="field">
           <span class="field-label">
-            <svg class="field-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             {{ t('school_name') }}
           </span>
-          <input type="text" name="school_name" value="{{ student.school_name or '' }}" list="school-list"/>
-          <datalist id="school-list">
-            {% for s in all_schools %}<option value="{{ s }}"></option>{% endfor %}
-          </datalist>
+          <select name="school_name" id="stg-school">
+            <option value="">— Choisir —</option>
+            {% if student.school_name %}
+              <option value="{{ student.school_name }}" selected>{{ student.school_name }}</option>
+            {% endif %}
+          </select>
         </label>
       </div>
       <label class="field">
@@ -306,4 +333,46 @@
   </section>
 
 </div>
+
+<script>
+(function(){
+  const govEl = document.getElementById('stg-governorate');
+  const delEl = document.getElementById('stg-delegation');
+  const scEl  = document.getElementById('stg-school');
+  if(!govEl) return;
+
+  const curDel = delEl ? delEl.value : '';
+  const curSch = scEl  ? scEl.value  : '';
+
+  async function loadDelegations(gov, keepDel){
+    if(!delEl) return;
+    const resp = await fetch(`/api/delegations?gov=${encodeURIComponent(gov||'')}`);
+    const dels = await resp.json();
+    delEl.innerHTML = '<option value="">— Délégation —</option>';
+    dels.forEach(d => {
+      const o = new Option(d, d, d===keepDel, d===keepDel);
+      delEl.appendChild(o);
+    });
+    if(keepDel && dels.includes(keepDel)) delEl.value = keepDel;
+    await loadSchools(delEl.value, keepDel===delEl.value ? curSch : '');
+  }
+
+  async function loadSchools(del, keepSch){
+    if(!scEl) return;
+    if(!del){ scEl.innerHTML='<option value="">— École —</option>'; return; }
+    const resp = await fetch(`/api/schools?delegation=${encodeURIComponent(del)}`);
+    const schools = await resp.json();
+    scEl.innerHTML = '<option value="">— École —</option>';
+    schools.forEach(s => {
+      const o = new Option(s, s, s===keepSch, s===keepSch);
+      scEl.appendChild(o);
+    });
+  }
+
+  govEl.addEventListener('change', () => loadDelegations(govEl.value, ''));
+  if(delEl) delEl.addEventListener('change', () => loadSchools(delEl.value, ''));
+
+  if(govEl.value) loadDelegations(govEl.value, curDel);
+})();
+</script>
 {% endblock %}

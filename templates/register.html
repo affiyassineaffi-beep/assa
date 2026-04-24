@@ -66,58 +66,74 @@
           {% endfor %}
         </select>
       </label>
-      <!-- Row 4 -->
+      <!-- Row 4 — Governorate → Delegation cascade -->
       <label class="field">
         <span class="field-label">
-          <svg class="field-icon" viewBox="0 0 24 24"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
-          {{ t('region_city') }}
+          <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
+          Gouvernorat (الولاية)
         </span>
-        <select name="region_city" id="reg-region" required>
-          <option value="">{{ t('select_region') }}</option>
-          {% for r in regions %}
-            <option value="{{ r }}">{{ r }}</option>
+        <select name="governorate" id="reg-governorate">
+          <option value="">— Choisir le gouvernorat —</option>
+          {% for g in governorates %}
+            <option value="{{ g }}">{{ g }}</option>
           {% endfor %}
         </select>
       </label>
       <label class="field">
         <span class="field-label">
-          <svg class="field-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+          Délégation (المعتمدية)
+        </span>
+        <select name="region_city" id="reg-delegation">
+          <option value="">— Choisir d'abord le gouvernorat —</option>
+        </select>
+      </label>
+      <!-- Row 4b — School -->
+      <label class="field">
+        <span class="field-label">
+          <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
           {{ t('school_name') }}
         </span>
-        <select name="school_name" id="reg-school" required>
-          <option value="">{{ t('select_school') }}</option>
-          {% for s in all_schools %}
-            <option value="{{ s }}">{{ s }}</option>
-          {% endfor %}
+        <select name="school_name" id="reg-school">
+          <option value="">— Choisir d'abord la délégation —</option>
         </select>
       </label>
-      <!-- Row 5 -->
-      <label class="field span-2">
+      <!-- Row 5 — Class -->
+      <label class="field">
         <span>{{ t('class_section') }}</span>
         <select name="class_section" id="reg-class" required>
           <option value="">{{ t('select_class') }}</option>
         </select>
       </label>
-      <!-- Row 6 — Delegation + Gender -->
-      <label class="field">
+      <!-- Row 6 — Gender (glass pill select) -->
+      <label class="field span-2">
         <span class="field-label">
-          <svg class="field-icon" viewBox="0 0 24 24"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
-          Délégation (المعتمدية)
-          <small class="muted">— ex. Tunis 1, Sfax 2…</small>
+          <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Genre (الجنس)
         </span>
-        <input type="text" name="delegation" maxlength="120" placeholder="Ex : Tunis 1, Ben Arous, Sfax 2…"/>
-      </label>
-      <label class="field">
-        <span class="field-label">
-          <svg class="field-icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          Genre
-        </span>
-        <select name="gender" required>
-          <option value="">— Choisir —</option>
-          <option value="female">Féminin</option>
-          <option value="male">Masculin</option>
-          <option value="other">Autre</option>
-        </select>
+        <div class="glass-pills" id="gender-pills">
+          <label class="glass-pill">
+            <input type="radio" name="gender" value="female"/>
+            <span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M12 12v8M9 18h6"/></svg>
+              Féminin
+            </span>
+          </label>
+          <label class="glass-pill">
+            <input type="radio" name="gender" value="male"/>
+            <span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="14" r="4"/><path d="m21 3-6 6M21 3h-5M21 3v5"/></svg>
+              Masculin
+            </span>
+          </label>
+          <label class="glass-pill">
+            <input type="radio" name="gender" value="other" checked/>
+            <span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>
+              Autre
+            </span>
+          </label>
+        </div>
       </label>
       <!-- Row 7 — AI Theme -->
       <label class="field">
@@ -162,14 +178,16 @@
 
 {% block scripts %}
 <script>
-new TomSelect('#reg-level',  { allowEmptyOption:true });
-new TomSelect('#reg-region', { allowEmptyOption:true });
-new TomSelect('#reg-school', { allowEmptyOption:true });
-const classSel = new TomSelect('#reg-class',  { allowEmptyOption:true });
-new TomSelect('#reg-section',{ allowEmptyOption:true });
+const govSel      = new TomSelect('#reg-governorate', { allowEmptyOption:true, placeholder:'— Gouvernorat —' });
+const delSel      = new TomSelect('#reg-delegation',  { allowEmptyOption:true, placeholder:'— Délégation —' });
+const schoolTom   = new TomSelect('#reg-school',      { allowEmptyOption:true, placeholder:'— École —' });
+const classSel    = new TomSelect('#reg-class',       { allowEmptyOption:true });
+new TomSelect('#reg-level',   { allowEmptyOption:true });
+new TomSelect('#reg-section', { allowEmptyOption:true });
 
-const levelSel = document.getElementById('reg-level');
+const levelSel    = document.getElementById('reg-level');
 const sectionField = document.getElementById('section-field');
+
 function updateSection(){
   sectionField.style.display = (levelSel.value === 'Secondary') ? '' : 'none';
 }
@@ -177,8 +195,7 @@ levelSel.addEventListener('change', updateSection);
 
 const GRADES_BY_LEVEL = {{ GRADES_BY_LEVEL | tojson }};
 function updateClasses(){
-  const level = levelSel.value;
-  const grades = GRADES_BY_LEVEL[level] || [];
+  const grades = GRADES_BY_LEVEL[levelSel.value] || [];
   classSel.clearOptions();
   classSel.addOption({value:'', text:'{{ t("select_class") }}'});
   grades.forEach(g => classSel.addOption({value:g, text:g}));
@@ -187,20 +204,41 @@ function updateClasses(){
 levelSel.addEventListener('change', updateClasses);
 updateClasses();
 
-const regionSel = document.getElementById('reg-region');
-const schoolSel = document.getElementById('reg-school').tomselect;
-async function updateSchools(){
-  const region = document.getElementById('reg-region').value;
-  const level  = document.getElementById('reg-level').value;
-  if(!region || !level){ return; }
-  const resp = await fetch(`/api/schools?region=${encodeURIComponent(region)}&level=${encodeURIComponent(level)}`);
-  const schools = await resp.json();
-  schoolSel.clearOptions();
-  schoolSel.addOption({value:'', text:'{{ t("select_school") }}'});
-  schools.forEach(s => schoolSel.addOption({value:s, text:s}));
-  schoolSel.refreshOptions(false);
+async function updateDelegations(){
+  const gov = document.getElementById('reg-governorate').value;
+  delSel.clearOptions();
+  delSel.addOption({value:'', text:'— Choisir la délégation —'});
+  if(!gov){ delSel.refreshOptions(false); return; }
+  const resp = await fetch(`/api/delegations?gov=${encodeURIComponent(gov)}`);
+  const dels = await resp.json();
+  dels.forEach(d => delSel.addOption({value:d, text:d}));
+  delSel.refreshOptions(false);
+  schoolTom.clearOptions();
+  schoolTom.addOption({value:'', text:'— Choisir d\'abord la délégation —'});
+  schoolTom.refreshOptions(false);
 }
-regionSel.addEventListener('change', updateSchools);
+govSel.on('change', updateDelegations);
+
+async function updateSchools(){
+  const delegation = document.getElementById('reg-delegation').value;
+  const level      = levelSel.value;
+  schoolTom.clearOptions();
+  if(!delegation){
+    schoolTom.addOption({value:'', text:'— Choisir d\'abord la délégation —'});
+    schoolTom.refreshOptions(false);
+    return;
+  }
+  const resp = await fetch(`/api/schools?delegation=${encodeURIComponent(delegation)}&level=${encodeURIComponent(level)}`);
+  const schools = await resp.json();
+  schoolTom.addOption({value:'', text:'— Choisir l\'école —'});
+  if(schools.length){
+    schools.forEach(s => schoolTom.addOption({value:s, text:s}));
+  } else {
+    schoolTom.addOption({value:'', text:'Aucun lycée référencé — saisir manuellement'});
+  }
+  schoolTom.refreshOptions(false);
+}
+delSel.on('change', updateSchools);
 levelSel.addEventListener('change', updateSchools);
 </script>
 {% endblock %}

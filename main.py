@@ -52,6 +52,14 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 GOOGLE_DISCOVERY_URL = "https://accounts.google.com/.well-known/openid-configuration"
 SCHOOLS_DATA_PATH = Path("data/schools.csv")
 
+import sys
+sys.path.insert(0, str(Path(__file__).parent / "data"))
+from tunisia_geodata import (
+    GEODATA, ALL_GOVERNORATES, ALL_DELEGATIONS,
+    delegations_for_governorate, LYCEES_BY_DELEGATION,
+    schools_for_delegation, ALL_SECONDARY_SCHOOLS,
+)
+
 # ─── Media player config ─────────────────────────────────────────────────────
 AUDIO_UPLOAD_DIR = Path(__file__).parent / "static" / "uploads" / "audio"
 AUDIO_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -160,13 +168,25 @@ def load_school_rows() -> list[dict]:
 
 
 SCHOOL_ROWS = load_school_rows()
-ALL_SCHOOLS = sorted({r["name"] for r in SCHOOL_ROWS})
-ALL_REGIONS = sorted({r["location"] for r in SCHOOL_ROWS})
+# Merge legacy CSV schools with the new geodata schools
+_csv_schools = sorted({r["name"] for r in SCHOOL_ROWS})
+ALL_SCHOOLS = sorted(set(_csv_schools) | set(ALL_SECONDARY_SCHOOLS))
+# ALL_REGIONS = all delegations (used for validation of existing region_city values)
+ALL_REGIONS = sorted(set(ALL_DELEGATIONS) | {r["location"] for r in SCHOOL_ROWS})
 
 
-def schools_for_region_level(region: str, level: str) -> list[str]:
-    return sorted({r["name"] for r in SCHOOL_ROWS
-                   if r["location"] == region and r["level"] == level})
+def schools_for_region_level(region: str, level: str = "") -> list[str]:
+    """Look up schools for a delegation+level.
+    Primary source: LYCEES_BY_DELEGATION (geodata).
+    Fallback: legacy CSV rows.
+    """
+    from_geo  = schools_for_delegation(region, level) if level else sorted(
+        LYCEES_BY_DELEGATION.get(region, []))
+    from_csv  = sorted({r["name"] for r in SCHOOL_ROWS
+                        if r["location"] == region
+                        and (not level or r.get("level") == level)})
+    combined = sorted(set(from_geo) | set(from_csv))
+    return combined if combined else sorted(LYCEES_BY_DELEGATION.get(region, []))
 
 
 def school_badge_color(school_name: str) -> str:
@@ -436,32 +456,32 @@ def unique_username(base: str) -> str:
 def profile_is_complete(student: Student) -> bool:
     return bool(
         student and student.educational_level in EDUCATIONAL_LEVELS
-        and student.region_city in ALL_REGIONS
-        and student.school_name in ALL_SCHOOLS
         and student.class_section in CLASS_SECTIONS
         and student.profile_completed
     )
 
 
 def validate_profile_form(form) -> tuple[dict | None, str | None]:
-    level = form.get("educational_level", "").strip()
-    region = form.get("region_city", "").strip()
-    school = form.get("school_name", "").strip()
-    cls = form.get("class_section", "").strip()
-    section = form.get("section", "").strip() or None
+    level      = form.get("educational_level", "").strip()
+    governorate = form.get("governorate", "").strip()
+    region     = form.get("region_city", "").strip()   # delegation
+    school     = form.get("school_name", "").strip()
+    cls        = form.get("class_section", "").strip()
+    section    = form.get("section", "").strip() or None
 
     if level not in EDUCATIONAL_LEVELS:
         return None, t("err_invalid_level")
-    if region not in ALL_REGIONS:
-        return None, t("err_invalid_region")
-    if school not in ALL_SCHOOLS:
-        return None, t("err_invalid_school")
-    # Class must be valid AND match the selected level.
     if cls not in GRADES_BY_LEVEL.get(level, []):
         return None, t("err_invalid_class")
 
-    return {"educational_level": level, "region_city": region,
-            "school_name": school, "class_section": cls, "section": section}, None
+    return {
+        "educational_level": level,
+        "governorate": governorate or None,
+        "region_city": region or None,
+        "school_name": school or None,
+        "class_section": cls,
+        "section": section,
+    }, None
 
 
 # ─── Template context ─────────────────────────────────────────────────────────
@@ -539,6 +559,7 @@ def _ensure_schema():
             ("password_reset_expires", "ALTER TABLE students ADD COLUMN password_reset_expires DATETIME"),
             ("is_admin",               "ALTER TABLE students ADD COLUMN is_admin INTEGER DEFAULT 0"),
             ("delegation",             "ALTER TABLE students ADD COLUMN delegation VARCHAR(120)"),
+            ("governorate",            "ALTER TABLE students ADD COLUMN governorate VARCHAR(120)"),
         ]:
             if col not in scols:
                 db.session.execute(text(ddl))
@@ -604,6 +625,7 @@ def index():
 @app.route("/register", methods=["GET", "POST"])
 def register():
     ctx = dict(educational_levels=EDUCATIONAL_LEVELS, regions=ALL_REGIONS,
+               governorates=ALL_GOVERNORATES,
                all_schools=ALL_SCHOOLS, class_sections=CLASS_SECTIONS, sections=SECTIONS)
     if request.method == "POST":
         username = request.form.get("username", "").strip()
@@ -658,6 +680,7 @@ def register():
                 print(f"[theme] interest gen failed: {exc}", flush=True)
 
         delegation = (request.form.get("delegation") or "").strip()
+        governorate = (request.form.get("governorate") or "").strip()
         student = Student(
             username=username, email=email,
             password_hash=generate_password_hash(password),
@@ -667,6 +690,7 @@ def register():
             email_verify_token=secrets.token_urlsafe(32),
             gender=gender,
             delegation=delegation or None,
+            governorate=governorate or None,
             custom_theme=_json.dumps(theme_obj),
         )
         db.session.add(student)
@@ -961,11 +985,20 @@ def dashboard():
 
 
 # ─── AJAX: schools for region+level ───────────────────────────────────────────
+@app.route("/api/delegations")
+def api_delegations():
+    """Return delegations for a given governorate."""
+    gov = request.args.get("gov", "").strip()
+    return jsonify(delegations_for_governorate(gov) if gov else ALL_DELEGATIONS)
+
+
 @app.route("/api/schools")
 def api_schools():
-    region = request.args.get("region", "")
-    level = request.args.get("level", "")
-    schools = schools_for_region_level(region, level) if region and level else ALL_SCHOOLS
+    region = request.args.get("region", "").strip()
+    delegation = request.args.get("delegation", "").strip()
+    level = request.args.get("level", "").strip()
+    lookup = delegation or region
+    schools = schools_for_region_level(lookup, level) if lookup else ALL_SECONDARY_SCHOOLS
     return jsonify(schools)
 
 
@@ -1951,7 +1984,7 @@ def settings_page():
                 session["username"] = new_name
             # Allow updating school/level/class via the same form (optional)
             for field in ("educational_level", "region_city", "school_name",
-                          "class_section", "section", "phone", "delegation"):
+                          "class_section", "section", "phone", "delegation", "governorate"):
                 val = (request.form.get(field) or "").strip()
                 if val:
                     setattr(student, field, val)
@@ -1995,7 +2028,8 @@ def settings_page():
 
     return render_template("settings.html", student=student,
                            educational_levels=EDUCATIONAL_LEVELS,
-                           regions=ALL_REGIONS, all_schools=ALL_SCHOOLS,
+                           regions=ALL_REGIONS, governorates=ALL_GOVERNORATES,
+                           all_schools=ALL_SCHOOLS,
                            class_sections=CLASS_SECTIONS, sections=SECTIONS)
 
 
