@@ -33,3 +33,9 @@ outputType = "webview"
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[userenv]
+
+[userenv.shared]
+GOOGLE_OAUTH_CLIENT_ID = "651083701892-hp44ba4498tuha4d7h6dpdm8je7ongg4.apps.googleusercontent.com"
+GOOGLE_OAUTH_CLIENT_SECRET = "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"
