@@ -33,20 +33,3 @@ outputType = "webview"
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[userenv]
-
-[userenv.shared]
-AIzaSyAb5Agt4LxoNvCUZC6Q9ZKpvV1pljjgeLU = "GEMINI_API_KEY_3"
-AIzaSyAls3iITUzg968v4ro8LRCV0z4i22OQiAE = "GEMINI_API_KEY"
-AIzaSyCcGUzS5234Zn6c6OqeeQ-VhVgs5zYZwbw = "GEMINI_API_KEY_2"
-"651083701892-e5qgd4kemrmn1t41s6a0b8i5vpe1omc9.apps.googleusercontent.com" = "GOOGLE_OAUTH_CLIENT_ID"
-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 = "GOOGLE_OAUTH_CLIENT_SECRET"
-"yyuyassine882@gmail.com" = "SMTP_HOST"
-
-[userenv.shared.HF_MODELmeta-llama]
-"Llama-3.2-1B-Instruct" = "HF_MODEL"
-
-[deployment]
-deploymentTarget = "vm"
-run = ["python", "main.py"]
