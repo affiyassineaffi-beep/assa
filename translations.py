@@ -173,17 +173,42 @@ def tr(key: str, lang: str = "fr") -> str:
 # context plus the major world languages.  Hebrew was removed at user
 # request.  Anything without a full translation table falls back via tr().
 LANGUAGES: dict[str, tuple[str, str, bool]] = {
-    "fr": ("French",     "Français",     False),
-    "ar": ("Arabic",     "العربية",       True),
-    "en": ("English",    "English",      False),
-    "es": ("Spanish",    "Español",      False),
-    "it": ("Italian",    "Italiano",     False),
-    "de": ("German",     "Deutsch",      False),
-    "pt": ("Portuguese", "Português",    False),
-    "tr": ("Turkish",    "Türkçe",       False),
-    "ru": ("Russian",    "Русский",      False),
-    "zh": ("Chinese",    "中文",          False),
-    "ja": ("Japanese",   "日本語",        False),
+    # ── Tunisia & Maghreb ────────────────────────────────────────────────────
+    "fr":  ("French",      "Français",      False),
+    "ar":  ("Arabic",      "العربية",        True),
+    "en":  ("English",     "English",       False),
+    "zgh": ("Tamazight",   "ⵜⴰⵎⴰⵣⵉⵖⵜ",       False),
+    # ── Europe — major ───────────────────────────────────────────────────────
+    "es":  ("Spanish",     "Español",       False),
+    "it":  ("Italian",     "Italiano",      False),
+    "de":  ("German",      "Deutsch",       False),
+    "pt":  ("Portuguese",  "Português",     False),
+    "nl":  ("Dutch",       "Nederlands",    False),
+    "el":  ("Greek",       "Ελληνικά",       False),
+    "pl":  ("Polish",      "Polski",        False),
+    "ro":  ("Romanian",    "Română",        False),
+    "cs":  ("Czech",       "Čeština",       False),
+    "hu":  ("Hungarian",   "Magyar",        False),
+    "sv":  ("Swedish",     "Svenska",       False),
+    "no":  ("Norwegian",   "Norsk",         False),
+    "da":  ("Danish",      "Dansk",         False),
+    "fi":  ("Finnish",     "Suomi",         False),
+    "uk":  ("Ukrainian",   "Українська",    False),
+    "ru":  ("Russian",     "Русский",       False),
+    # ── Middle East & Asia ───────────────────────────────────────────────────
+    "tr":  ("Turkish",     "Türkçe",        False),
+    "fa":  ("Persian",     "فارسی",          True),
+    "ur":  ("Urdu",        "اردو",            True),
+    "hi":  ("Hindi",       "हिन्दी",          False),
+    "bn":  ("Bengali",     "বাংলা",          False),
+    "zh":  ("Chinese",     "中文",           False),
+    "ja":  ("Japanese",    "日本語",         False),
+    "ko":  ("Korean",      "한국어",          False),
+    "vi":  ("Vietnamese",  "Tiếng Việt",    False),
+    "th":  ("Thai",        "ไทย",            False),
+    "id":  ("Indonesian",  "Bahasa Indonesia", False),
+    "ms":  ("Malay",       "Bahasa Melayu", False),
+    "ca":  ("Catalan",     "Català",        False),
 }
 
 RTL_LANGS = {code for code, (_, _, rtl) in LANGUAGES.items() if rtl}

@@ -176,15 +176,19 @@ ALL_REGIONS = sorted(set(ALL_DELEGATIONS) | {r["location"] for r in SCHOOL_ROWS}
 
 
 def schools_for_region_level(region: str, level: str = "") -> list[str]:
-    """Look up schools for a delegation+level.
-    Primary source: LYCEES_BY_DELEGATION (geodata).
-    Fallback: legacy CSV rows.
+    """Look up institutions for a delegation+level.
+
+    Primary source : `data.tunisia_geodata.schools_for_delegation()` which now
+    dispatches on level: Primary, Preparatory, Secondary, University.
+    Fallback       : legacy CSV rows (only useful for level=Secondary).
     """
-    from_geo  = schools_for_delegation(region, level) if level else sorted(
-        LYCEES_BY_DELEGATION.get(region, []))
-    from_csv  = sorted({r["name"] for r in SCHOOL_ROWS
-                        if r["location"] == region
-                        and (not level or r.get("level") == level)})
+    # Always go through the level-aware dispatcher (defaults to Secondary).
+    from_geo = schools_for_delegation(region, level)
+    from_csv: list[str] = []
+    if not level or level == "Secondary":
+        from_csv = sorted({r["name"] for r in SCHOOL_ROWS
+                           if r["location"] == region
+                           and (not level or r.get("level") == level)})
     combined = sorted(set(from_geo) | set(from_csv))
     return combined if combined else sorted(LYCEES_BY_DELEGATION.get(region, []))
 
@@ -3048,6 +3052,89 @@ def _print_startup_audit() -> None:
     print(f"  {'✅' if cloud_ok  else '⚠️ '} System Ready: Cloudinary        {'Detected' if cloud_ok  else 'not configured (using local storage)'}", flush=True)
     print(f"  {'✅' if fire_ok   else '⚠️ '} System Ready: Firebase Storage  {'Detected' if fire_ok   else 'not configured (using local storage)'}", flush=True)
     print("═" * 60 + "\n", flush=True)
+
+
+# ─── Health & Secrets Checklist (public, presence-only — never exposes values) ─
+@app.route("/health")
+def health_check():
+    """Lightweight liveness probe."""
+    return jsonify({"status": "ok", "service": "ssas", "version": "rebuild-apr-2026"})
+
+
+@app.route("/health/secrets")
+def health_secrets():
+    """Public secrets-presence checklist. Reports only whether each key is set,
+    NEVER the actual value. Safe to expose for ops dashboards."""
+    groups: list[dict] = [
+        {"category": "Core",
+         "items": [
+             ("SESSION_SECRET",                   "Flask session encryption", True),
+             ("ADMIN_EMAIL",                      "Admin panel access",       False),
+         ]},
+        {"category": "AI Coach (Sami)",
+         "items": [
+             ("HUGGINGFACE_API_TOKEN",            "Primary AI (Sami v3 — Llama-3 chain)", False),
+             ("GEMINI_API_KEY",                   "Fallback AI (Gemini, key #1)",         False),
+             ("GEMINI_API_KEY_2",                 "Fallback AI (Gemini, key #2)",         False),
+             ("GEMINI_API_KEY_3",                 "Fallback AI (Gemini, key #3)",         False),
+         ]},
+        {"category": "Authentication",
+         "items": [
+             ("GOOGLE_OAUTH_CLIENT_ID",           "Google login (OAuth)",     False),
+             ("GOOGLE_OAUTH_CLIENT_SECRET",       "Google login (OAuth)",     False),
+         ]},
+        {"category": "Email (SMTP)",
+         "items": [
+             ("SMTP_HOST",                        "SMTP server host",         False),
+             ("SMTP_USER",                        "SMTP username",            False),
+             ("SMTP_PASSWORD",                    "SMTP password",            False),
+             ("SMTP_PORT",                        "SMTP port (default 587)",  False),
+             ("SMTP_FROM",                        "From address override",    False),
+         ]},
+        {"category": "Storage — Cloudinary (avatars)",
+         "items": [
+             ("CLOUDINARY_CLOUD_NAME",            "Cloud name",               False),
+             ("CLOUDINARY_API_KEY",               "API key",                  False),
+             ("CLOUDINARY_API_SECRET",            "API secret",               False),
+         ]},
+        {"category": "Storage — Firebase (videos)",
+         "items": [
+             ("FIREBASE_STORAGE_BUCKET",          "Bucket name",              False),
+             ("FIREBASE_SERVICE_ACCOUNT_JSON",    "Service account JSON",     False),
+         ]},
+        {"category": "Optional integrations",
+         "items": [
+             ("YOUTUBE_API_KEY",                  "YouTube search (optional)", False),
+             ("HF_MODEL",                         "Override Sami model chain", False),
+         ]},
+    ]
+    out: list[dict] = []
+    total, set_count, required_missing = 0, 0, 0
+    for g in groups:
+        items = []
+        for key, purpose, required in g["items"]:
+            present = bool(os.environ.get(key, "").strip())
+            total += 1
+            if present:
+                set_count += 1
+            elif required:
+                required_missing += 1
+            items.append({
+                "key": key, "purpose": purpose,
+                "required": required, "set": present,
+                "status": "ok" if present else ("missing" if required else "optional"),
+            })
+        out.append({"category": g["category"], "items": items})
+    return jsonify({
+        "service": "ssas",
+        "summary": {
+            "total": total,
+            "set": set_count,
+            "missing_required": required_missing,
+            "ready": required_missing == 0,
+        },
+        "groups": out,
+    })
 
 
 # ─── Run ──────────────────────────────────────────────────────────────────────
