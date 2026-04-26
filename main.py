@@ -874,29 +874,83 @@ def google_login():
     return redirect(uri)
 
 
+@app.route("/auth/info")
+def google_auth_info():
+    """Show the exact redirect URI + JS origin to whitelist in Google Console.
+    Useful when debugging OAuth 403/redirect_uri_mismatch errors."""
+    redirect_uri = get_google_redirect_url()
+    origin = redirect_uri.replace("/auth/callback", "")
+    return jsonify({
+        "service": "ssas",
+        "google_oauth_configured": google_is_configured(),
+        "live_redirect_uri": redirect_uri,
+        "live_javascript_origin": origin,
+        "instructions": [
+            "1. Open Google Cloud Console → APIs & Services → Credentials.",
+            "2. Edit your OAuth 2.0 Client ID (Web application).",
+            "3. Add the URL above under 'Authorized redirect URIs'.",
+            "4. Add the origin (no path) under 'Authorized JavaScript origins'.",
+            "5. Save. If the consent screen is in 'Testing' mode, also add your email as a Test user.",
+            "6. Wait ~30 seconds for Google to propagate, then retry.",
+        ],
+    })
+
+
 @app.route("/auth/callback")
 @app.route("/google_login/callback")  # legacy alias
 def google_callback():
     if not google_is_configured():
         flash(t("google_needs_config"), "error")
         return redirect(url_for("login"))
+
+    # Google returns ?error=access_denied / redirect_uri_mismatch / etc when
+    # the OAuth client is misconfigured or the user is not whitelisted.
+    err = request.args.get("error")
+    if err:
+        err_desc = request.args.get("error_description", "")
+        live = get_google_redirect_url()
+        msg = (f"Google OAuth: {err}. "
+               f"{err_desc} "
+               f"→ Whitelist {live} dans Google Cloud Console "
+               f"(APIs & Services → Credentials → ton OAuth Client → "
+               f"'Authorized redirect URIs'). "
+               f"Voir aussi /auth/info.")
+        app.logger.warning("Google OAuth error from callback: %s — %s", err, err_desc)
+        flash(msg, "error")
+        return redirect(url_for("login"))
+
     code = request.args.get("code")
     if not code:
-        flash("Google did not return a code.", "error")
+        flash(f"Google n'a pas renvoyé de code. URI configurée : {get_google_redirect_url()}. "
+              f"Voir /auth/info pour les étapes.", "error")
         return redirect(url_for("login"))
+
     client = WebApplicationClient(os.environ["GOOGLE_OAUTH_CLIENT_ID"])
-    cfg = requests.get(GOOGLE_DISCOVERY_URL, timeout=10).json()
-    token_url, headers, body = client.prepare_token_request(
-        cfg["token_endpoint"],
-        authorization_response=request.url.replace("http://", "https://"),
-        redirect_url=get_google_redirect_url(), code=code,
-    )
-    token_resp = requests.post(token_url, headers=headers, data=body,
-                               auth=(os.environ["GOOGLE_OAUTH_CLIENT_ID"],
-                                     os.environ["GOOGLE_OAUTH_CLIENT_SECRET"]), timeout=10)
-    client.parse_request_body_response(json.dumps(token_resp.json()))
-    uri, headers, body = client.add_token(cfg["userinfo_endpoint"])
-    info = requests.get(uri, headers=headers, data=body, timeout=10).json()
+    try:
+        cfg = requests.get(GOOGLE_DISCOVERY_URL, timeout=10).json()
+        token_url, headers, body = client.prepare_token_request(
+            cfg["token_endpoint"],
+            authorization_response=request.url.replace("http://", "https://"),
+            redirect_url=get_google_redirect_url(), code=code,
+        )
+        token_resp = requests.post(token_url, headers=headers, data=body,
+                                   auth=(os.environ["GOOGLE_OAUTH_CLIENT_ID"],
+                                         os.environ["GOOGLE_OAUTH_CLIENT_SECRET"]),
+                                   timeout=10)
+        token_data = token_resp.json()
+        if not token_resp.ok or "error" in token_data:
+            app.logger.warning("Google token exchange failed: %s", token_data)
+            flash(f"Échange de token Google échoué : {token_data.get('error_description') or token_data.get('error') or token_resp.status_code}. "
+                  f"Vérifie que {get_google_redirect_url()} est dans 'Authorized redirect URIs'.",
+                  "error")
+            return redirect(url_for("login"))
+        client.parse_request_body_response(json.dumps(token_data))
+        uri, headers, body = client.add_token(cfg["userinfo_endpoint"])
+        info = requests.get(uri, headers=headers, data=body, timeout=10).json()
+    except requests.RequestException as e:
+        app.logger.exception("Google OAuth network failure")
+        flash(f"Erreur réseau Google OAuth : {e}.", "error")
+        return redirect(url_for("login"))
     if not info.get("email_verified"):
         flash(t("err_google_no_email"), "error")
         return redirect(url_for("login"))
@@ -3051,6 +3105,13 @@ def _print_startup_audit() -> None:
     print(f"  {'✅' if hf_ok     else '⚠️ '} System Ready: HF Token          {'Detected' if hf_ok     else 'not configured'}", flush=True)
     print(f"  {'✅' if cloud_ok  else '⚠️ '} System Ready: Cloudinary        {'Detected' if cloud_ok  else 'not configured (using local storage)'}", flush=True)
     print(f"  {'✅' if fire_ok   else '⚠️ '} System Ready: Firebase Storage  {'Detected' if fire_ok   else 'not configured (using local storage)'}", flush=True)
+    if google_ok:
+        domains = os.environ.get("REPLIT_DOMAINS", "") or os.environ.get("REPLIT_DEV_DOMAIN", "")
+        host = domains.split(",")[0].strip() if domains else "<your-domain>"
+        print("─" * 60, flush=True)
+        print("  Google OAuth — whitelist this redirect URI in Google Cloud Console:", flush=True)
+        print(f"     https://{host}/auth/callback", flush=True)
+        print(f"     (live debug endpoint: /auth/info)", flush=True)
     print("═" * 60 + "\n", flush=True)
 
 
