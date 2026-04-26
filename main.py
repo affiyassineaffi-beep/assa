@@ -2609,11 +2609,17 @@ def api_focus_complete():
 # Uses the modern Router endpoint (OpenAI-compatible chat completions).
 # https://huggingface.co/docs/inference-providers
 HF_API_TOKEN = os.environ.get("HUGGINGFACE_API_TOKEN", "").strip()
-HF_MODEL = os.environ.get(
-    "HF_MODEL",
-    # Strong open chat model with good multilingual + Arabic understanding
-    "meta-llama/Llama-3.1-8B-Instruct:novita",
-)
+# Comma-separated model fallback chain. Stronger multilingual models go first;
+# we fall back gracefully if one provider is offline / model is unavailable.
+HF_MODEL_CHAIN = [
+    m.strip() for m in os.environ.get(
+        "HF_MODEL",
+        "meta-llama/Llama-3.3-70B-Instruct:novita,"
+        "Qwen/Qwen2.5-72B-Instruct:nebius,"
+        "meta-llama/Llama-3.1-70B-Instruct:novita,"
+        "meta-llama/Llama-3.1-8B-Instruct:novita"
+    ).split(",") if m.strip()
+]
 HF_ROUTER_URL = "https://router.huggingface.co/v1/chat/completions"
 
 
@@ -2632,16 +2638,27 @@ def _hf_system_prompt(student: Student | None) -> str:
         if student.governorate:        bits.append(f"gouvernorat: {student.governorate}")
     profile = " · ".join(bits) if bits else "profil inconnu"
     return (
-        "إنتي Sami، الكوتش الذكي متاع SSAS — منصة تونسية للطلبة. "
-        "إختصاصك: نصايح pro في الـIT (programmation, web, mobile, IA, cybersécurité, hardware, networking) "
-        "والـSport (musculation, football, fitness, cardio, تغذية، récupération). "
-        "تكلم دايماً بالدارجة التونسية (مع كلمات فرنسية و عربية فصحى كي يلزم، كيما الطلبة التوانسة في الواقع). "
-        "إذا الطالب كتبلك بالفرنسية ولا الإنڨليزية، جاوب بنفس اللغة لكن إبقى warm و proche. "
-        f"بروفيل الطالب: {profile}. "
-        "كن مختصر (2-5 جمل بحال default) إلا كي يطلب شرح طويل. "
-        "عطي réponses concrètes، أمثلة ملموسة، code snippets كي تحتاج، programmes d'entraînement كي يلزم. "
-        "ماتعطيش نصايح générique مكررة (style « entraine-toi régulièrement », « mange équilibré »…). "
-        "كن صديق pro، مش كتاب مدرسي."
+        "You are Sami, a Tunisian student coach inside SSAS. You ALWAYS reply in "
+        "Tunisian Darija written in LATIN script (Arabizi: 3, 7, 9 for ع ح ق, "
+        "with French loanwords mixed in naturally — exactly how Tunisian students "
+        "chat on WhatsApp). Example tone: « 3aslema! Hak chnowa lazmek ta3mel: "
+        "1) ... 2) ... 3) ... Kifech 7abbeb t3awed t9rralek had el partie? »\n\n"
+        "Specialties: IT (programmation, web, mobile, IA, cybersécurité, hardware, "
+        "networking, devops) and Sport (musculation, football, fitness, cardio, "
+        "nutrition, récupération). Outside these two domains, answer briefly then "
+        "redirect to IT or Sport.\n\n"
+        f"Student profile: {profile}.\n\n"
+        "Rules:\n"
+        "• If the user writes in French, English or Arabic, mirror their language "
+        "  (still warm and direct, no robotic tone).\n"
+        "• Be concrete and concise (3 to 6 short sentences by default). Use bullet "
+        "  lists or numbered steps when it helps.\n"
+        "• Give real examples: code snippets in markdown ``` blocks for IT, sets x reps "
+        "  schemas for sport (ex. « 4x8 squat @ 70% RM »).\n"
+        "• NEVER repeat the same phrase twice. NEVER produce filler like « Python "
+        "  est un langage… Python est un langage… ». If you don't know, say so honestly.\n"
+        "• Don't act like a textbook — talk like a pro friend who already knows the "
+        "  Tunisian school system (bac, devoirs, sections, lycées)."
     )
 
 
@@ -2657,28 +2674,28 @@ def _build_messages(system: str, history: list[dict], user_msg: str) -> list[dic
     return msgs
 
 
-def _hf_generate(system: str, history: list[dict], user_msg: str,
-                 max_new_tokens: int = 500) -> tuple[str | None, str | None]:
-    """Call HF Router (OpenAI-compatible). Returns (text, error)."""
-    if not _hf_ready():
-        return None, "huggingface_token_missing"
+def _hf_call_one(model: str, messages: list[dict],
+                 max_new_tokens: int) -> tuple[str | None, str | None]:
+    """Call one HF Router model. Returns (text, error)."""
     headers = {"Authorization": f"Bearer {HF_API_TOKEN}",
                "Content-Type": "application/json"}
     payload = {
-        "model": HF_MODEL,
-        "messages": _build_messages(system, history, user_msg),
+        "model": model,
+        "messages": messages,
         "max_tokens": max_new_tokens,
-        "temperature": 0.75,
+        "temperature": 0.65,
         "top_p": 0.9,
+        "frequency_penalty": 0.6,
+        "presence_penalty": 0.3,
         "stream": False,
     }
-    for attempt in range(3):
+    for attempt in range(2):
         try:
             r = requests.post(HF_ROUTER_URL, headers=headers, json=payload, timeout=60)
         except requests.RequestException as e:
             return None, f"network: {e}"
         if r.status_code == 503:
-            time.sleep(min(4 + attempt * 4, 15))
+            time.sleep(3 + attempt * 3)
             continue
         if r.status_code in (401, 403):
             return None, "huggingface_unauthorized"
@@ -2686,14 +2703,13 @@ def _hf_generate(system: str, history: list[dict], user_msg: str,
             time.sleep(2 + attempt * 2)
             continue
         if r.status_code == 404:
-            return None, f"hf_model_not_found: {HF_MODEL}"
+            return None, f"hf_model_not_found: {model}"
         if not r.ok:
             return None, f"hf_http_{r.status_code}: {r.text[:200]}"
         try:
             data = r.json()
         except Exception:
             return None, "hf_bad_json"
-        # OpenAI-style response
         try:
             choice = data["choices"][0]
             msg = choice.get("message") or {}
@@ -2708,6 +2724,25 @@ def _hf_generate(system: str, history: list[dict], user_msg: str,
             return None, str(err_str)[:240]
         return None, "hf_unexpected"
     return None, "hf_loading_timeout"
+
+
+def _hf_generate(system: str, history: list[dict], user_msg: str,
+                 max_new_tokens: int = 500) -> tuple[str | None, str | None]:
+    """Walk the HF model fallback chain. Returns (text, error)."""
+    if not _hf_ready():
+        return None, "huggingface_token_missing"
+    messages = _build_messages(system, history, user_msg)
+    last_err: str | None = None
+    fatal = {"huggingface_unauthorized", "huggingface_token_missing"}
+    for model in HF_MODEL_CHAIN:
+        text, err = _hf_call_one(model, messages, max_new_tokens)
+        if text:
+            return text, None
+        last_err = err
+        # Don't keep trying if the token itself is the problem.
+        if err in fatal:
+            return None, err
+    return None, last_err or "hf_unexpected"
 
 
 @app.route("/ai/hf", methods=["POST"])
@@ -2911,10 +2946,115 @@ def logout():
     return redirect(url_for("index"))
 
 
+# ─── Global error handlers (graceful "Setup Required" instead of crashes) ────
+def _audit_missing_secrets() -> list[str]:
+    """Return a friendly list of secrets that look unset, for the error page."""
+    candidates = {
+        "SESSION_SECRET":              "Flask session encryption",
+        "GOOGLE_OAUTH_CLIENT_ID":      "Google login",
+        "GOOGLE_OAUTH_CLIENT_SECRET":  "Google login",
+        "GEMINI_API_KEY":              "AI Mentor (Gemini)",
+        "HUGGINGFACE_API_TOKEN":       "AI fallback",
+        "SMTP_HOST":                   "Email verification",
+        "SMTP_USER":                   "Email verification",
+        "SMTP_PASSWORD":               "Email verification",
+        "CLOUDINARY_CLOUD_NAME":       "Avatar storage",
+        "CLOUDINARY_API_KEY":          "Avatar storage",
+        "CLOUDINARY_API_SECRET":       "Avatar storage",
+        "FIREBASE_STORAGE_BUCKET":     "Video storage",
+        "FIREBASE_SERVICE_ACCOUNT_JSON": "Video storage",
+    }
+    return [k for k in candidates if not os.environ.get(k, "").strip()]
+
+
+@app.errorhandler(404)
+def _err_404(_e):
+    return render_template(
+        "error.html",
+        badge="404",
+        title="Page not found",
+        message="The page you’re looking for doesn’t exist or has been moved.",
+        show_retry=False,
+    ), 404
+
+
+@app.errorhandler(500)
+@app.errorhandler(Exception)
+def _err_500(e):
+    # Let Werkzeug handle HTTP errors that already have a status code (e.g. 401, 403)
+    from werkzeug.exceptions import HTTPException
+    if isinstance(e, HTTPException) and e.code and e.code != 500:
+        return e
+    print(f"[error-handler] Unhandled exception: {e}", flush=True)
+    missing = _audit_missing_secrets()
+    return render_template(
+        "error.html",
+        badge="Setup Required" if missing else "Service Unavailable",
+        title="Something went wrong on the server",
+        message=("This feature needs a secret that isn’t set yet. "
+                 "Add the missing keys below in Replit → Tools → Secrets, "
+                 "then refresh."),
+        missing_keys=missing,
+        show_retry=True,
+    ), 500
+
+
+# ─── Startup secrets audit (prints a clear status report on boot) ─────────────
+def _print_startup_audit() -> None:
+    """Print a friendly checklist of every secret the app looks at."""
+    checks = [
+        ("SESSION_SECRET",                 "Session encryption",       True),
+        ("GOOGLE_OAUTH_CLIENT_ID",         "Google login",             False),
+        ("GOOGLE_OAUTH_CLIENT_SECRET",     "Google login",             False),
+        ("GEMINI_API_KEY",                 "AI Mentor (Gemini)",       False),
+        ("GEMINI_API_KEY_2",               "AI Mentor backup #2",      False),
+        ("GEMINI_API_KEY_3",               "AI Mentor backup #3",      False),
+        ("HUGGINGFACE_API_TOKEN",          "AI fallback (HuggingFace)", False),
+        ("SMTP_HOST",                      "Email (SMTP host)",        False),
+        ("SMTP_USER",                      "Email (SMTP user)",        False),
+        ("SMTP_PASSWORD",                  "Email (SMTP password)",    False),
+        ("CLOUDINARY_CLOUD_NAME",          "Avatar storage",           False),
+        ("CLOUDINARY_API_KEY",             "Avatar storage",           False),
+        ("CLOUDINARY_API_SECRET",          "Avatar storage",           False),
+        ("FIREBASE_STORAGE_BUCKET",        "Video storage",            False),
+        ("FIREBASE_SERVICE_ACCOUNT_JSON",  "Video storage",            False),
+        ("YOUTUBE_API_KEY",                "YouTube search (optional)", False),
+        ("ADMIN_EMAIL",                    "Admin panel access",       False),
+    ]
+    print("\n" + "═" * 60, flush=True)
+    print("  SSAS — Startup Secrets Audit", flush=True)
+    print("═" * 60, flush=True)
+    for key, purpose, required in checks:
+        present = bool(os.environ.get(key, "").strip())
+        if present:
+            mark = "✅"
+            status = "Detected"
+        else:
+            mark = "❌" if required else "⚠️ "
+            status = "MISSING (required)" if required else "not set (feature disabled)"
+        print(f"  {mark}  {key:<32} {status:<28} — {purpose}", flush=True)
+    print("═" * 60, flush=True)
+    # Friendly grouped summaries
+    google_ok = all(os.environ.get(k) for k in ("GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET"))
+    smtp_ok   = all(os.environ.get(k) for k in ("SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD"))
+    gemini_ok = any(os.environ.get(k) for k in ("GEMINI_API_KEY", "GEMINI_API_KEY_2", "GEMINI_API_KEY_3"))
+    cloud_ok  = all(os.environ.get(k) for k in ("CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"))
+    fire_ok   = all(os.environ.get(k) for k in ("FIREBASE_STORAGE_BUCKET", "FIREBASE_SERVICE_ACCOUNT_JSON"))
+    hf_ok     = bool(os.environ.get("HUGGINGFACE_API_TOKEN"))
+    print(f"  {'✅' if google_ok else '⚠️ '} System Ready: Google OAuth      {'Detected' if google_ok else 'not configured'}", flush=True)
+    print(f"  {'✅' if smtp_ok   else '⚠️ '} System Ready: SMTP Email        {'Detected' if smtp_ok   else 'not configured'}", flush=True)
+    print(f"  {'✅' if gemini_ok else '⚠️ '} System Ready: Gemini AI         {'Detected' if gemini_ok else 'not configured'}", flush=True)
+    print(f"  {'✅' if hf_ok     else '⚠️ '} System Ready: HF Token          {'Detected' if hf_ok     else 'not configured'}", flush=True)
+    print(f"  {'✅' if cloud_ok  else '⚠️ '} System Ready: Cloudinary        {'Detected' if cloud_ok  else 'not configured (using local storage)'}", flush=True)
+    print(f"  {'✅' if fire_ok   else '⚠️ '} System Ready: Firebase Storage  {'Detected' if fire_ok   else 'not configured (using local storage)'}", flush=True)
+    print("═" * 60 + "\n", flush=True)
+
+
 # ─── Run ──────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     Path("data").mkdir(exist_ok=True)
     with app.app_context():
         _ensure_schema()
+    _print_startup_audit()
     socketio.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", "5000")),
                  debug=False, use_reloader=False, allow_unsafe_werkzeug=True)

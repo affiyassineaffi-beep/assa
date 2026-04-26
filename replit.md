@@ -60,11 +60,19 @@ schools_for_delegation(delegation, level="") → list[str]
 ## AI Coach (Sami v3 — IT & Sport in Darija)
 Implemented in `main.py` under *Hugging Face Inference Providers (Sami v3)*.
 - **Endpoint**: `https://router.huggingface.co/v1/chat/completions` (OpenAI-compatible)
-- **Default model**: `meta-llama/Llama-3.1-8B-Instruct:novita` (override with `HF_MODEL` env var)
-- **System prompt**: persona Sami — Tunisian Darija coach, IT (programmation/web/mobile/IA/cybersécurité)
-  + Sport (musculation/foot/fitness/nutrition). Gives concrete, professional answers.
-- **Frontend**: `templates/ai_chat.html` calls `/ai/hf` first, falls back to `/ai/stream` (Gemini)
-  if HF fails. Renders the brand SVG as the AI avatar.
+- **Model chain** (tried in order, override with `HF_MODEL` env var, comma-separated):
+  1. `meta-llama/Llama-3.3-70B-Instruct:novita` — best quality
+  2. `Qwen/Qwen2.5-72B-Instruct:nebius` — strong multilingual
+  3. `meta-llama/Llama-3.1-70B-Instruct:novita`
+  4. `meta-llama/Llama-3.1-8B-Instruct:novita` — last-resort fast fallback
+- **Generation**: `temperature=0.65`, `top_p=0.9`, `frequency_penalty=0.6`, `presence_penalty=0.3`
+  to kill the repetition that smaller models exhibit on Darija.
+- **System prompt**: persona Sami — Tunisian student coach. Replies in Tunisian Darija
+  written in Latin script (Arabizi: 3, 7, 9 + French loanwords). Specialties: IT
+  (programmation, web, mobile, IA, cybersécurité, devops) + Sport (musculation, foot,
+  fitness, cardio, nutrition). Mirrors the user's language if they write in fr/ar/en.
+- **Frontend**: `templates/ai_chat.html` calls `/ai/hf` first, falls back to `/ai/stream`
+  (Gemini) if HF fails. Renders the brand SVG as the AI avatar.
 - **Required secret**: `HUGGINGFACE_API_TOKEN`
 
 ## Settings UI (`templates/settings.html`)
