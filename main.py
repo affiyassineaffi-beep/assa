@@ -657,8 +657,8 @@ def register():
             return render_template("register.html", **ctx)
 
         gender = (request.form.get("gender") or "").strip().lower()
-        if gender not in {"female", "male", "other"}:
-            gender = "other"
+        if gender not in {"female", "male"}:
+            gender = "female"
 
         # AI-generated personal theme:
         #   1) If a photo was uploaded, analyze it directly.
@@ -2057,9 +2057,9 @@ def settings_page():
         elif action == "regen_theme":
             # Regenerate the AI personal theme from a fresh photo OR from an
             # interest keyword (which triggers a web image search + analysis)
-            new_gender = (request.form.get("gender") or student.gender or "other").lower()
-            if new_gender not in {"female", "male", "other"}:
-                new_gender = "other"
+            new_gender = (request.form.get("gender") or student.gender or "female").lower()
+            if new_gender not in {"female", "male"}:
+                new_gender = "female"
             student.gender = new_gender
             new_delegation = (request.form.get("delegation") or "").strip()
             if new_delegation:
