@@ -2609,11 +2609,17 @@ def api_focus_complete():
 # Uses the modern Router endpoint (OpenAI-compatible chat completions).
 # https://huggingface.co/docs/inference-providers
 HF_API_TOKEN = os.environ.get("HUGGINGFACE_API_TOKEN", "").strip()
-HF_MODEL = os.environ.get(
-    "HF_MODEL",
-    # Strong open chat model with good multilingual + Arabic understanding
-    "meta-llama/Llama-3.1-8B-Instruct:novita",
-)
+# Comma-separated model fallback chain. Stronger multilingual models go first;
+# we fall back gracefully if one provider is offline / model is unavailable.
+HF_MODEL_CHAIN = [
+    m.strip() for m in os.environ.get(
+        "HF_MODEL",
+        "meta-llama/Llama-3.3-70B-Instruct:novita,"
+        "Qwen/Qwen2.5-72B-Instruct:nebius,"
+        "meta-llama/Llama-3.1-70B-Instruct:novita,"
+        "meta-llama/Llama-3.1-8B-Instruct:novita"
+    ).split(",") if m.strip()
+]
 HF_ROUTER_URL = "https://router.huggingface.co/v1/chat/completions"
 
 
@@ -2632,16 +2638,27 @@ def _hf_system_prompt(student: Student | None) -> str:
         if student.governorate:        bits.append(f"gouvernorat: {student.governorate}")
     profile = " · ".join(bits) if bits else "profil inconnu"
     return (
-        "إنتي Sami، الكوتش الذكي متاع SSAS — منصة تونسية للطلبة. "
-        "إختصاصك: نصايح pro في الـIT (programmation, web, mobile, IA, cybersécurité, hardware, networking) "
-        "والـSport (musculation, football, fitness, cardio, تغذية، récupération). "
-        "تكلم دايماً بالدارجة التونسية (مع كلمات فرنسية و عربية فصحى كي يلزم، كيما الطلبة التوانسة في الواقع). "
-        "إذا الطالب كتبلك بالفرنسية ولا الإنڨليزية، جاوب بنفس اللغة لكن إبقى warm و proche. "
-        f"بروفيل الطالب: {profile}. "
-        "كن مختصر (2-5 جمل بحال default) إلا كي يطلب شرح طويل. "
-        "عطي réponses concrètes، أمثلة ملموسة، code snippets كي تحتاج، programmes d'entraînement كي يلزم. "
-        "ماتعطيش نصايح générique مكررة (style « entraine-toi régulièrement », « mange équilibré »…). "
-        "كن صديق pro، مش كتاب مدرسي."
+        "You are Sami, a Tunisian student coach inside SSAS. You ALWAYS reply in "
+        "Tunisian Darija written in LATIN script (Arabizi: 3, 7, 9 for ع ح ق, "
+        "with French loanwords mixed in naturally — exactly how Tunisian students "
+        "chat on WhatsApp). Example tone: « 3aslema! Hak chnowa lazmek ta3mel: "
+        "1) ... 2) ... 3) ... Kifech 7abbeb t3awed t9rralek had el partie? »\n\n"
+        "Specialties: IT (programmation, web, mobile, IA, cybersécurité, hardware, "
+        "networking, devops) and Sport (musculation, football, fitness, cardio, "
+        "nutrition, récupération). Outside these two domains, answer briefly then "
+        "redirect to IT or Sport.\n\n"
+        f"Student profile: {profile}.\n\n"
+        "Rules:\n"
+        "• If the user writes in French, English or Arabic, mirror their language "
+        "  (still warm and direct, no robotic tone).\n"
+        "• Be concrete and concise (3 to 6 short sentences by default). Use bullet "
+        "  lists or numbered steps when it helps.\n"
+        "• Give real examples: code snippets in markdown ``` blocks for IT, sets x reps "
+        "  schemas for sport (ex. « 4x8 squat @ 70% RM »).\n"
+        "• NEVER repeat the same phrase twice. NEVER produce filler like « Python "
+        "  est un langage… Python est un langage… ». If you don't know, say so honestly.\n"
+        "• Don't act like a textbook — talk like a pro friend who already knows the "
+        "  Tunisian school system (bac, devoirs, sections, lycées)."
     )
 
 
@@ -2657,28 +2674,28 @@ def _build_messages(system: str, history: list[dict], user_msg: str) -> list[dic
     return msgs
 
 
-def _hf_generate(system: str, history: list[dict], user_msg: str,
-                 max_new_tokens: int = 500) -> tuple[str | None, str | None]:
-    """Call HF Router (OpenAI-compatible). Returns (text, error)."""
-    if not _hf_ready():
-        return None, "huggingface_token_missing"
+def _hf_call_one(model: str, messages: list[dict],
+                 max_new_tokens: int) -> tuple[str | None, str | None]:
+    """Call one HF Router model. Returns (text, error)."""
     headers = {"Authorization": f"Bearer {HF_API_TOKEN}",
                "Content-Type": "application/json"}
     payload = {
-        "model": HF_MODEL,
-        "messages": _build_messages(system, history, user_msg),
+        "model": model,
+        "messages": messages,
         "max_tokens": max_new_tokens,
-        "temperature": 0.75,
+        "temperature": 0.65,
         "top_p": 0.9,
+        "frequency_penalty": 0.6,
+        "presence_penalty": 0.3,
         "stream": False,
     }
-    for attempt in range(3):
+    for attempt in range(2):
         try:
             r = requests.post(HF_ROUTER_URL, headers=headers, json=payload, timeout=60)
         except requests.RequestException as e:
             return None, f"network: {e}"
         if r.status_code == 503:
-            time.sleep(min(4 + attempt * 4, 15))
+            time.sleep(3 + attempt * 3)
             continue
         if r.status_code in (401, 403):
             return None, "huggingface_unauthorized"
@@ -2686,14 +2703,13 @@ def _hf_generate(system: str, history: list[dict], user_msg: str,
             time.sleep(2 + attempt * 2)
             continue
         if r.status_code == 404:
-            return None, f"hf_model_not_found: {HF_MODEL}"
+            return None, f"hf_model_not_found: {model}"
         if not r.ok:
             return None, f"hf_http_{r.status_code}: {r.text[:200]}"
         try:
             data = r.json()
         except Exception:
             return None, "hf_bad_json"
-        # OpenAI-style response
         try:
             choice = data["choices"][0]
             msg = choice.get("message") or {}
@@ -2708,6 +2724,25 @@ def _hf_generate(system: str, history: list[dict], user_msg: str,
             return None, str(err_str)[:240]
         return None, "hf_unexpected"
     return None, "hf_loading_timeout"
+
+
+def _hf_generate(system: str, history: list[dict], user_msg: str,
+                 max_new_tokens: int = 500) -> tuple[str | None, str | None]:
+    """Walk the HF model fallback chain. Returns (text, error)."""
+    if not _hf_ready():
+        return None, "huggingface_token_missing"
+    messages = _build_messages(system, history, user_msg)
+    last_err: str | None = None
+    fatal = {"huggingface_unauthorized", "huggingface_token_missing"}
+    for model in HF_MODEL_CHAIN:
+        text, err = _hf_call_one(model, messages, max_new_tokens)
+        if text:
+            return text, None
+        last_err = err
+        # Don't keep trying if the token itself is the problem.
+        if err in fatal:
+            return None, err
+    return None, last_err or "hf_unexpected"
 
 
 @app.route("/ai/hf", methods=["POST"])
