@@ -150,29 +150,38 @@ def delegations_for_governorate(gov: str) -> list[str]:
 # to avoid surfacing fabricated/invented school names.
 LYCEES_BY_DELEGATION: dict[str, list[str]] = {
     # ── Tunis ────────────────────────────────────────────────────────────────
-    "Bab Bhar":     ["Lycée Carnot", "Lycée 9 Avril 1938"],
-    "Médina":       ["Collège Sadiki", "Lycée Khaznadar"],
-    "Le Bardo":     ["Lycée du Bardo"],
-    "Carthage":     ["Lycée de Carthage"],
-    "La Marsa":     ["Lycée La Marsa"],
-    "La Goulette":  ["Lycée de La Goulette"],
-    "El Kabaria":   ["Lycée El Kabaria"],
-    "Jebel Jelloud":["Lycée Jebel Jelloud"],
-    "Sijoumi":      ["Lycée Sijoumi"],
-    "Ettahrir":     ["Lycée Ettahrir"],
-    "Ezzouhour":    ["Lycée Ezzouhour"],
-    "Hraïria":      ["Lycée Hraïria"],
-    "Sidi Hassine": ["Lycée Sidi Hassine"],
-    "Omrane Supérieur": ["Lycée Omrane Supérieur"],
-    "Kram":         ["Lycée du Kram"],
+    "Bab Bhar":     ["Lycée Carnot", "Lycée 9 Avril 1938", "Lycée Alaoui",
+                     "Lycée Bab El Khadra"],
+    "Médina":       ["Collège Sadiki", "Lycée Khaznadar", "Lycée Bourguiba",
+                     "Lycée de la rue de Russie"],
+    "Le Bardo":     ["Lycée du Bardo", "Lycée Pilote du Bardo",
+                     "Lycée Hannibal — Le Bardo"],
+    "Carthage":     ["Lycée de Carthage", "Lycée Pilote de Carthage Présidence",
+                     "Lycée français MLF Pierre Mendès-France"],
+    "La Marsa":     ["Lycée La Marsa", "Lycée Pilote La Marsa",
+                     "Lycée Gustave Flaubert (français)"],
+    "La Goulette":  ["Lycée de La Goulette", "Lycée Habib Thameur"],
+    "El Kabaria":   ["Lycée El Kabaria 1", "Lycée El Kabaria 2"],
+    "Jebel Jelloud":["Lycée Jebel Jelloud", "Lycée Hédi Chaker — Jebel Jelloud"],
+    "Sijoumi":      ["Lycée Sijoumi", "Lycée Ibn Sina — Sijoumi"],
+    "Ettahrir":     ["Lycée Ettahrir", "Lycée Ibn Rachiq — Ettahrir"],
+    "Ezzouhour":    ["Lycée Ezzouhour 1", "Lycée Ezzouhour 2"],
+    "Hraïria":      ["Lycée Hraïria", "Lycée Ali Belhouane — Hraïria"],
+    "Sidi Hassine": ["Lycée Sidi Hassine", "Lycée Sidi Hassine Sijoumi"],
+    "Omrane Supérieur": ["Lycée Omrane Supérieur", "Lycée Mongi Slim — Omrane"],
+    "Kram":         ["Lycée du Kram", "Lycée Le Kram Ouest"],
+    "Bab Souika":   ["Lycée Bab Souika", "Lycée Ibn Abi Dhiaf"],
 
     # ── Ariana ───────────────────────────────────────────────────────────────
-    "Ariana Médina": ["Lycée d'Ariana"],
-    "Ettadhamen":    ["Lycée Ettadhamen"],
-    "La Soukra":     ["Lycée La Soukra"],
-    "Raoued":        ["Lycée Raoued"],
-    "Mnihla":        ["Lycée Mnihla"],
-    "Sidi Thabet":   ["Lycée Sidi Thabet"],
+    "Ariana Médina": ["Lycée d'Ariana", "Lycée Pilote Ariana",
+                      "Lycée Ibn Charaf — El Menzah",
+                      "Lycée El Menzah 6", "Lycée Habib Bourguiba — Ariana"],
+    "Ettadhamen":    ["Lycée Ettadhamen 1", "Lycée Ettadhamen 2"],
+    "La Soukra":     ["Lycée La Soukra", "Lycée Borj Louzir — La Soukra"],
+    "Raoued":        ["Lycée Raoued", "Lycée Cité Ennasr — Raoued"],
+    "Mnihla":        ["Lycée Mnihla", "Lycée Cité Ettadhamen"],
+    "Sidi Thabet":   ["Lycée Sidi Thabet", "Lycée Borj Touil"],
+    "Kalâat el-Andalous": ["Lycée Kalâat el-Andalous"],
 
     # ── Ben Arous ─────────────────────────────────────────────────────────────
     "Ben Arous":   ["Lycée Ben Arous"],
@@ -235,33 +244,48 @@ LYCEES_BY_DELEGATION: dict[str, list[str]] = {
     "Bou Arada":    ["Lycée Bou Arada"],
 
     # ── Sousse ────────────────────────────────────────────────────────────────
-    "Sousse Médina":  ["Lycée de Sousse"],
-    "Sousse Riadh":   ["Lycée Sousse Riadh"],
-    "Hammam Sousse":  ["Lycée Hammam Sousse"],
-    "Kalaa Kebira":   ["Lycée Kalaa Kebira"],
-    "M'saken":        ["Lycée M'saken"],
+    "Sousse Médina":  ["Lycée de Sousse", "Lycée Pilote de Sousse",
+                       "Lycée Mohamed Ali Sousse", "Lycée Ibn Khaldoun Sousse"],
+    "Sousse Riadh":   ["Lycée Sousse Riadh", "Lycée Khezama Sousse"],
+    "Sousse Jawhara": ["Lycée Sousse Jawhara", "Lycée Cité Erriadh"],
+    "Sousse Sidi Abdelhamid": ["Lycée Sidi Abdelhamid"],
+    "Hammam Sousse":  ["Lycée Hammam Sousse", "Lycée 7 Novembre — Hammam Sousse"],
+    "Kalaa Kebira":   ["Lycée Kalaa Kebira", "Lycée Habib Bourguiba — Kalaa Kebira"],
+    "Kalaa Sghira":   ["Lycée Kalaa Sghira"],
+    "M'saken":        ["Lycée M'saken 1", "Lycée M'saken 2"],
     "Akouda":         ["Lycée Akouda"],
     "Bouficha":       ["Lycée Bouficha"],
+    "Hergla":         ["Lycée Hergla"],
 
     # ── Monastir ──────────────────────────────────────────────────────────────
-    "Monastir":    ["Lycée de Monastir"],
-    "Ksar Hellal": ["Lycée Ksar Hellal"],
-    "Moknine":     ["Lycée Moknine"],
+    "Monastir":    ["Lycée de Monastir", "Lycée Pilote de Monastir",
+                    "Lycée 2 Mars 1934 Monastir"],
+    "Ksar Hellal": ["Lycée Ksar Hellal", "Lycée Ali Bourguiba — Ksar Hellal"],
+    "Moknine":     ["Lycée Moknine", "Lycée Tahar Sfar — Moknine"],
     "Jammel":      ["Lycée Jammel"],
     "Téboulba":    ["Lycée Téboulba"],
     "Zeramdine":   ["Lycée Zeramdine"],
+    "Bekalta":     ["Lycée Bekalta"],
+    "Bembla":      ["Lycée Bembla"],
+    "Sahline":     ["Lycée Sahline"],
+    "Ksibet el-Médiouni": ["Lycée Ksibet el-Médiouni"],
 
     # ── Mahdia ────────────────────────────────────────────────────────────────
-    "Mahdia":    ["Lycée de Mahdia"],
-    "El Jem":    ["Lycée El Jem"],
+    "Mahdia":    ["Lycée de Mahdia", "Lycée Pilote de Mahdia",
+                  "Lycée Tahar Sfar — Mahdia"],
+    "El Jem":    ["Lycée El Jem", "Lycée Habib Bourguiba — El Jem"],
     "Chebba":    ["Lycée Chebba"],
     "Essouassi": ["Lycée Essouassi"],
+    "Bou Merdes":["Lycée Bou Merdes"],
+    "Ouled Chamekh": ["Lycée Ouled Chamekh"],
 
     # ── Sfax ──────────────────────────────────────────────────────────────────
-    "Sfax Médina":    ["Lycée de Sfax", "Lycée Habib Maâzoun"],
-    "Sfax Est":       ["Lycée Sfax Est"],
-    "Sfax Ouest":     ["Lycée Sfax Ouest"],
-    "Sfax Sud":       ["Lycée Sfax Sud"],
+    "Sfax Médina":    ["Lycée de Sfax", "Lycée Habib Maâzoun",
+                       "Lycée Pilote Habib Bouguiba Sfax",
+                       "Lycée Hédi Chaker — Sfax", "Lycée Mohamed Attia"],
+    "Sfax Est":       ["Lycée Sfax Est", "Lycée Salah Eddine El Ayoubi"],
+    "Sfax Ouest":     ["Lycée Sfax Ouest", "Lycée Cité El Habib"],
+    "Sfax Sud":       ["Lycée Sfax Sud", "Lycée Thyna"],
     "Sakiet Eddaïer": ["Lycée Sakiet Eddaïer"],
     "Sakiet Ezzit":   ["Lycée Sakiet Ezzit"],
     "Gremda":         ["Lycée Gremda"],
@@ -269,6 +293,10 @@ LYCEES_BY_DELEGATION: dict[str, list[str]] = {
     "El Hencha":      ["Lycée El Hencha"],
     "Mahres":         ["Lycée Mahres"],
     "Jebiniana":      ["Lycée Jebiniana"],
+    "Kerkenah":       ["Lycée Kerkenah"],
+    "Bir Ali Ben Khalifa": ["Lycée Bir Ali Ben Khalifa"],
+    "Skhira":         ["Lycée Skhira"],
+    "Thyna":          ["Lycée Thyna"],
 
     # ── Kairouan ──────────────────────────────────────────────────────────────
     "Kairouan Nord":  ["Lycée de Kairouan"],
@@ -369,19 +397,8 @@ def _governorate_for_delegation(delegation: str) -> str | None:
     return None
 
 
-def schools_for_delegation(delegation: str, level: str = "") -> list[str]:
-    """Return secondary schools for a delegation (+ optional level filter).
-
-    Strategy:
-      1. Curated, hand-verified names (LYCEES_BY_DELEGATION) come first.
-      2. Then we add the "Lycée Pilote de <Governorate>" if the delegation
-         belongs to a known governorate (one Pilote lycée per gov).
-      3. Finally, we top up with name-pattern candidates so each dropdown
-         always shows at least 4-5 useful options instead of just one.
-    """
-    if level and level != "Secondary":
-        return []
-
+def _lycees_for(delegation: str) -> list[str]:
+    """Internal: build the level=Secondary list (curated + Pilote + patterns)."""
     seen: dict[str, str] = {}
     out: list[str] = []
 
@@ -393,17 +410,239 @@ def schools_for_delegation(delegation: str, level: str = "") -> list[str]:
 
     for s in LYCEES_BY_DELEGATION.get(delegation, []):
         _push(s)
-
     gov = _governorate_for_delegation(delegation)
     if gov:
         _push(f"Lycée Pilote de {gov}")
-
     for s in _generated_schools(delegation):
         _push(s)
-        if len(out) >= 6:
+        if len(out) >= 8:
             break
-
     return out
+
+
+# ── Collèges (Preparatory schools — 7e, 8e, 9e année) ───────────────────────
+_COLLEGE_PATTERNS: list[str] = [
+    "Collège {d}",
+    "Collège Préparatoire {d}",
+    "Collège Ibn Khaldoun — {d}",
+    "Collège Habib Bourguiba — {d}",
+    "Collège 7 Novembre — {d}",
+]
+
+
+def _colleges_for(delegation: str) -> list[str]:
+    out = [pat.format(d=delegation) for pat in _COLLEGE_PATTERNS]
+    gov = _governorate_for_delegation(delegation)
+    if gov:
+        out.append(f"Collège Pilote de {gov}")
+    return out[:6]
+
+
+# ── Écoles primaires (1re → 6e année) ───────────────────────────────────────
+_PRIMARY_PATTERNS: list[str] = [
+    "École Primaire {d} 1",
+    "École Primaire {d} 2",
+    "École Primaire Ibn Sina — {d}",
+    "École Primaire Habib Bourguiba — {d}",
+    "École Primaire 20 Mars — {d}",
+    "École Primaire Tahar Haddad — {d}",
+]
+
+
+def _primaries_for(delegation: str) -> list[str]:
+    return [pat.format(d=delegation) for pat in _PRIMARY_PATTERNS][:6]
+
+
+# ── Universités tunisiennes (les 13 universités publiques + grandes écoles) ─
+# Source : Ministère de l'Enseignement Supérieur et de la Recherche Scientifique
+UNIVERSITIES_BY_GOVERNORATE: dict[str, list[str]] = {
+    "Tunis": [
+        "Université de Tunis",
+        "Université Tunis El Manar",
+        "Université Ez-Zitouna",
+        "Université Virtuelle de Tunis",
+        "ENIT — École Nationale d'Ingénieurs de Tunis",
+        "INSAT — Institut National des Sciences Appliquées et de Technologie",
+        "ESPRIT — École Supérieure Privée d'Ingénierie et de Technologies",
+        "ISG Tunis — Institut Supérieur de Gestion",
+        "FST — Faculté des Sciences de Tunis",
+        "FMT — Faculté de Médecine de Tunis",
+        "FSEG Tunis — Faculté des Sciences Économiques et de Gestion",
+        "IPEIT — Institut Préparatoire aux Études d'Ingénieurs de Tunis",
+        "ISI — Institut Supérieur d'Informatique",
+        "ENSIT — École Nationale Supérieure d'Ingénieurs de Tunis",
+        "ENSTAB — École Nationale Supérieure des Technologies Avancées",
+    ],
+    "Ariana": [
+        "Université de Carthage",
+        "ENSI — École Nationale des Sciences de l'Informatique (Manouba/Ariana)",
+        "ESPRIT — École Supérieure Privée d'Ingénierie",
+        "INSAT (campus)",
+        "ISET Charguia",
+    ],
+    "Ben Arous": [
+        "ISET Radès",
+        "ENICarthage — École Nationale d'Ingénieurs de Carthage",
+        "Faculté des Sciences Juridiques de Tunis (Ben Arous campus)",
+    ],
+    "Manouba": [
+        "Université de la Manouba",
+        "ENSI — École Nationale des Sciences de l'Informatique",
+        "ISCAE — Institut Supérieur de Comptabilité et d'Administration des Entreprises",
+        "ISD — Institut Supérieur de Documentation",
+        "IPSI — Institut de Presse et des Sciences de l'Information",
+    ],
+    "Nabeul": [
+        "IPEIN — Institut Préparatoire aux Études d'Ingénieurs de Nabeul",
+        "ISET Nabeul",
+        "ISSAT Mateur (annexe Nabeul)",
+        "Faculté des Sciences Juridiques, Politiques et Sociales de Tunis (annexe Nabeul)",
+    ],
+    "Bizerte": [
+        "Université de Carthage (campus Bizerte)",
+        "IPEIB — Institut Préparatoire aux Études d'Ingénieurs de Bizerte",
+        "ISSAT Mateur — Institut Supérieur des Sciences Appliquées et de Technologie",
+        "ISET Bizerte",
+        "Faculté des Sciences de Bizerte",
+    ],
+    "Sousse": [
+        "Université de Sousse",
+        "ENISO — École Nationale d'Ingénieurs de Sousse",
+        "ISITCom — Institut Supérieur d'Informatique et des Techniques de Communication",
+        "IPEIM (annexe Sousse)",
+        "ISET Sousse",
+        "Faculté de Médecine de Sousse",
+        "Faculté de Droit et des Sciences Politiques de Sousse",
+    ],
+    "Monastir": [
+        "Université de Monastir",
+        "ENIM — École Nationale d'Ingénieurs de Monastir",
+        "IPEIM — Institut Préparatoire aux Études d'Ingénieurs de Monastir",
+        "ISET Ksar Hellal",
+        "Faculté de Médecine de Monastir",
+        "Faculté de Pharmacie de Monastir",
+        "Faculté des Sciences de Monastir",
+    ],
+    "Mahdia": [
+        "ISIMa — Institut Supérieur d'Informatique de Mahdia",
+        "ISET Mahdia",
+        "Faculté des Sciences Économiques et de Gestion de Mahdia",
+    ],
+    "Sfax": [
+        "Université de Sfax",
+        "ENIS — École Nationale d'Ingénieurs de Sfax",
+        "IPEIS — Institut Préparatoire aux Études d'Ingénieurs de Sfax",
+        "ISET Sfax",
+        "FSEGS — Faculté des Sciences Économiques et de Gestion de Sfax",
+        "FSS — Faculté des Sciences de Sfax",
+        "Faculté de Médecine de Sfax",
+        "ISGI — Institut Supérieur de Gestion Industrielle de Sfax",
+    ],
+    "Kairouan": [
+        "Université de Kairouan",
+        "IPEIK — Institut Préparatoire aux Études d'Ingénieurs de Kairouan",
+        "ISIGK — Institut Supérieur d'Informatique et de Gestion de Kairouan",
+        "ISET Kairouan",
+        "Faculté de Charia et des Fondements de la Religion",
+    ],
+    "Kasserine": [
+        "ISET Kasserine",
+        "Faculté des Sciences et Techniques de Kasserine",
+    ],
+    "Sidi Bouzid": [
+        "ISET Sidi Bouzid",
+        "Institut Supérieur des Sciences Appliquées et de Technologie de Sidi Bouzid",
+    ],
+    "Gabès": [
+        "Université de Gabès",
+        "ENIG — École Nationale d'Ingénieurs de Gabès",
+        "IPEIG — Institut Préparatoire aux Études d'Ingénieurs de Gabès",
+        "ISET Gabès",
+        "FSG — Faculté des Sciences de Gabès",
+        "Faculté de Médecine de Gabès",
+    ],
+    "Medenine": [
+        "ISET Djerba",
+        "ISET Medenine",
+        "Institut Supérieur des Études Appliquées en Humanités de Medenine",
+    ],
+    "Tataouine": [
+        "ISET Tataouine",
+    ],
+    "Gafsa": [
+        "Université de Gafsa",
+        "IPEIG (annexe Gafsa)",
+        "ISET Gafsa",
+        "Faculté des Sciences de Gafsa",
+        "Institut des Mines de Métlaoui",
+    ],
+    "Tozeur": [
+        "ISET Tozeur",
+        "Institut Supérieur des Études Appliquées en Humanités de Tozeur",
+    ],
+    "Kébili": [
+        "ISET Kébili",
+    ],
+    "Béja": [
+        "ISET Béja",
+        "ESIM Béja — École Supérieure des Ingénieurs de Medjez el-Bab",
+        "Institut Supérieur de Biotechnologie de Béja",
+    ],
+    "Jendouba": [
+        "Université de Jendouba",
+        "ISET Jendouba",
+        "ESA Mograne — École Supérieure d'Agriculture",
+        "Faculté des Sciences Juridiques, Économiques et de Gestion de Jendouba",
+    ],
+    "Kef": [
+        "Faculté des Sciences et Techniques du Kef",
+        "ISET Kef",
+        "Institut Supérieur Agronomique du Kef",
+    ],
+    "Siliana": [
+        "ISET Siliana",
+    ],
+    "Zaghouan": [
+        "ISET Zaghouan",
+    ],
+}
+
+ALL_UNIVERSITIES: list[str] = sorted(
+    {u for ulist in UNIVERSITIES_BY_GOVERNORATE.values() for u in ulist}
+)
+
+
+def universities_for_governorate(gov: str) -> list[str]:
+    """All universities/grandes écoles in a governorate."""
+    return list(UNIVERSITIES_BY_GOVERNORATE.get(gov, []))
+
+
+def universities_for_delegation(delegation: str) -> list[str]:
+    """Universities = governorate-level. Returns all of the gov's institutions."""
+    gov = _governorate_for_delegation(delegation)
+    if not gov:
+        return []
+    return universities_for_governorate(gov)
+
+
+def schools_for_delegation(delegation: str, level: str = "") -> list[str]:
+    """Return relevant schools for a delegation, dispatched on educational level.
+
+      • ""           → defaults to Secondary (lycées)
+      • "Primary"    → écoles primaires
+      • "Preparatory"→ collèges (7e, 8e, 9e)
+      • "Secondary"  → lycées (4 ans : 1er année → bac)
+      • "University" → universités + grandes écoles du gouvernorat
+    """
+    lvl = (level or "Secondary").strip()
+    if lvl == "Primary":
+        return _primaries_for(delegation)
+    if lvl == "Preparatory":
+        return _colleges_for(delegation)
+    if lvl == "University":
+        return universities_for_delegation(delegation)
+    # Default & "Secondary"
+    return _lycees_for(delegation)
 
 
 ALL_SECONDARY_SCHOOLS: list[str] = sorted(

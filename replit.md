@@ -32,19 +32,25 @@
 | `static/icon.svg` / `static/favicon.svg` | Brand mark (futuristic AI/connection logo) |
 
 ## Location Data (`data/tunisia_geodata.py`)
+**Coverage:** 24 governorates · 257 delegations · 212 curated lycée names ·
+101 university / grande école entries (all 13 public universities + ENIT, INSAT,
+ESPRIT, ENIM, ENIS, ENISO, IPEIs, ISETs, faculties of medicine/pharmacy/sciences).
+
 ```
-GEODATA = { governorate: [delegation, ...], ... }       # 24 governorates, 264 delegations
-LYCEES_BY_DELEGATION = { delegation: [school, ...] }    # curated lycée seeds
-ALL_GOVERNORATES, ALL_DELEGATIONS, ALL_SECONDARY_SCHOOLS
+GEODATA                  = { governorate: [delegation, ...], ... }
+LYCEES_BY_DELEGATION     = { delegation: [lycée, ...] }       # 157 delegations curated
+UNIVERSITIES_BY_GOVERNORATE = { governorate: [institution, ...] }   # all 24 govs
+ALL_GOVERNORATES, ALL_DELEGATIONS, ALL_SECONDARY_SCHOOLS, ALL_UNIVERSITIES
 
 delegations_for_governorate(gov) → list[str]
+universities_for_governorate(gov) → list[str]
+universities_for_delegation(delegation) → list[str]
 schools_for_delegation(delegation, level="") → list[str]
-   # 1. Curated names first (LYCEES_BY_DELEGATION)
-   # 2. + "Lycée Pilote de <Governorate>"
-   # 3. + name-pattern candidates ("Lycée X", "Lycée Secondaire X",
-   #     "Lycée Ibn Khaldoun — X", "Lycée Habib Bourguiba — X",
-   #     "Lycée 2 Mars 1934 — X", "Lycée 9 Avril 1938 — X")
-   # → guarantees 4-6 plausible options per delegation
+   # Level-aware dispatcher:
+   #   level=""  / "Secondary"  → lycées  (curated + Pilote + patterns, ≥6 each)
+   #   level="Preparatory"      → collèges (Collège X, Collège Pilote de Gov, …)
+   #   level="Primary"          → écoles primaires (École Primaire X 1, X 2, …)
+   #   level="University"       → universités + grandes écoles du gouvernorat
 ```
 
 ## API Endpoints
@@ -56,6 +62,8 @@ schools_for_delegation(delegation, level="") → list[str]
 | `POST /ai/hf` | Hugging Face Router chat (primary AI — IT & Sport coach in Darija) |
 | `POST /ai/stream` | Gemini SSE chat (fallback) |
 | `POST /ai/reset` | Clear AI conversation history |
+| `GET /health` | Liveness probe (returns `{status:"ok"}`) |
+| `GET /health/secrets` | Public secrets-presence checklist (presence only, never values) |
 
 ## AI Coach (Sami v3 — IT & Sport in Darija)
 Implemented in `main.py` under *Hugging Face Inference Providers (Sami v3)*.
