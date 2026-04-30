@@ -1,7 +1,12 @@
 # SSAS — Tunisian Academic Management & Social Platform
 
 ## Stack
-- **Backend**: Python 3.11, Flask, Flask-SocketIO (threading mode), SQLAlchemy + SQLite (`data/academic_platform.db`)
+- **Backend**: Python 3.11, Flask, Flask-SocketIO (threading mode), SQLAlchemy + **Supabase Postgres** (via Transaction pooler, IPv4)
+- **Database**: Supabase Postgres 17 (`SUPABASE_DB_URL` secret = pooler URI on `aws-1-eu-central-1.pooler.supabase.com:6543`). The legacy `data/academic_platform.db` SQLite file has been removed; the app is now Autoscale-ready (no local FS persistence).
+- **Supabase client**: `supabase-py` (v2) initialized as `supabase_client` for Auth/Storage/Realtime; gated on `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (or `SUPABASE_ANON_KEY`).
+- **AI Coach (Sami) history**: persisted in the `chat_messages` table (`ChatMessage` model). Helpers: `_ai_history_load/append/clear`. Session is used only as a fast read-cache; truth lives in Postgres so it survives restarts.
+- **Schema bootstrap**: `_ensure_schema()` uses `information_schema.columns` (Postgres-compatible) to add new columns idempotently; called at startup inside `app.app_context()`.
+- **IMPORTANT — Supabase URL on Replit**: the *direct* connection (`db.<ref>.supabase.co:5432`) is IPv6-only and unreachable from Replit. Always use the **Transaction pooler** URI (port 6543, `aws-X-<region>.pooler.supabase.com`, user format `postgres.<ref>`).
 - **Frontend**: Jinja2 templates, vanilla JS, TomSelect for searchable dropdowns, Lucide SVG icons
 - **AI Coach (Sami)**: Hugging Face Inference Providers (Llama-3 via Router) — primary; Google Gemini — fallback
 - **Storage**: Cloudinary (optional) for avatars via `storage_manager.py`
