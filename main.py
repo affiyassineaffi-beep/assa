@@ -3233,9 +3233,10 @@ def health_secrets():
     groups: list[dict] = [
         {"category": "Database — Supabase",
          "items": [
-             {"key": "SUPABASE_DB_URL",            "purpose": "Postgres connection (SQLAlchemy)", "required": True,  "set": bool(os.environ.get("SUPABASE_DB_URL"))},
-             {"key": "SUPABASE_URL",               "purpose": "Supabase REST/Realtime base URL",  "required": False, "set": bool(os.environ.get("SUPABASE_URL"))},
-             {"key": "SUPABASE_SERVICE_ROLE_KEY",  "purpose": "Server-side Supabase admin key",   "required": False, "set": bool(os.environ.get("SUPABASE_SERVICE_ROLE_KEY"))},
+             ("SUPABASE_DB_URL",                  "Postgres connection (SQLAlchemy)", True),
+             ("SUPABASE_URL",                     "Supabase REST/Realtime base URL",  False),
+             ("SUPABASE_SERVICE_ROLE_KEY",        "Server-side Supabase admin key",   False),
+             ("SUPABASE_ANON_KEY",                "Client-side Supabase anon key",    False),
          ]},
         {"category": "Core",
          "items": [
