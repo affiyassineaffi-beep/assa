@@ -25,3 +25,5 @@ requests
 simple-websocket
 sqlalchemy
 werkzeug
+psycopg2-binary
+supabase

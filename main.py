@@ -13,7 +13,7 @@ from oauthlib.oauth2 import WebApplicationClient
 from sqlalchemy import or_, and_, text
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from models import db, Student, Grade, Message, Track, Group, GroupMember, Resource, UserFile, SystemSetting
+from models import db, Student, Grade, Message, Track, Group, GroupMember, Resource, UserFile, SystemSetting, ChatMessage
 import storage_manager as sm
 from datetime import timedelta
 from werkzeug.utils import secure_filename
@@ -36,9 +36,30 @@ from email.utils import formataddr
 # ─── App setup ────────────────────────────────────────────────────────────────
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key-change-me")
-_DB_PATH = Path(__file__).parent / "data" / "academic_platform.db"
-_DB_PATH.parent.mkdir(exist_ok=True)
-app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{_DB_PATH}"
+
+# ─── Database — Supabase Postgres (autoscale-ready, no local FS) ──────────────
+# We connect SQLAlchemy directly to Supabase's Postgres via the pooler URL,
+# so all existing ORM code (Student.query, db.session.commit(), etc.) keeps
+# working unchanged. supabase-py is also initialized for Auth/Storage/Realtime.
+_SUPABASE_DB_URL = os.environ.get("SUPABASE_DB_URL", "").strip()
+if not _SUPABASE_DB_URL:
+    raise RuntimeError(
+        "SUPABASE_DB_URL is not set. Add it in Replit Secrets — copy the "
+        "Connection Pooling URI from your Supabase project (Settings → "
+        "Database → Connection string → URI, transaction pooler, port 6543) "
+        "and replace [YOUR-PASSWORD] with your DB password."
+    )
+# Normalize: SQLAlchemy 2.x wants postgresql:// (not postgres://)
+if _SUPABASE_DB_URL.startswith("postgres://"):
+    _SUPABASE_DB_URL = "postgresql://" + _SUPABASE_DB_URL[len("postgres://"):]
+app.config["SQLALCHEMY_DATABASE_URI"] = _SUPABASE_DB_URL
+# Pooler-friendly engine settings (Supabase transaction pooler closes idle conns)
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+    "pool_pre_ping": True,
+    "pool_recycle": 280,
+    "pool_size": 5,
+    "max_overflow": 10,
+}
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # 25 MB upload cap
 # Persistent session ("Remember me") — 90-day cookie when session.permanent = True
@@ -48,6 +69,18 @@ app.config["SESSION_COOKIE_SECURE"] = bool(os.environ.get("REPLIT_DOMAINS"))
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 db.init_app(app)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+
+# ─── supabase-py client (Auth / Storage / Realtime — optional helpers) ────────
+supabase_client = None
+try:
+    from supabase import create_client as _sb_create_client
+    _SB_URL = os.environ.get("SUPABASE_URL", "").strip()
+    _SB_KEY = (os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+               or os.environ.get("SUPABASE_ANON_KEY", "").strip())
+    if _SB_URL and _SB_KEY:
+        supabase_client = _sb_create_client(_SB_URL, _SB_KEY)
+except Exception as _e:
+    supabase_client = None
 
 GOOGLE_DISCOVERY_URL = "https://accounts.google.com/.well-known/openid-configuration"
 SCHOOLS_DATA_PATH = Path("data/schools.csv")
@@ -527,24 +560,31 @@ def global_context():
 
 
 # ─── DB init ──────────────────────────────────────────────────────────────────
+def _pg_table_columns(table_name: str) -> set[str]:
+    """Return the set of column names for a Postgres table (current schema)."""
+    rows = db.session.execute(text(
+        "SELECT column_name FROM information_schema.columns "
+        "WHERE table_schema = current_schema() AND table_name = :t"
+    ), {"t": table_name})
+    return {r[0] for r in rows}
+
+
 def _ensure_schema():
-    """Lightweight migration: create tables and add missing columns on SQLite."""
+    """Postgres schema bootstrap: create all tables, then add any columns
+    introduced after initial deployment. Idempotent — safe to call repeatedly."""
     db.create_all()
     try:
         # messages.seen_at + messages.group_id
-        cols = {row[1] for row in db.session.execute(text("PRAGMA table_info(messages)"))}
+        cols = _pg_table_columns("messages")
         if "seen_at" not in cols:
-            db.session.execute(text("ALTER TABLE messages ADD COLUMN seen_at DATETIME"))
+            db.session.execute(text("ALTER TABLE messages ADD COLUMN seen_at TIMESTAMP"))
         if "group_id" not in cols:
             db.session.execute(text("ALTER TABLE messages ADD COLUMN group_id INTEGER"))
-        # students.theme + students.language
-        scols = {row[1] for row in db.session.execute(text("PRAGMA table_info(students)"))}
-        if "theme" not in scols:
-            db.session.execute(text("ALTER TABLE students ADD COLUMN theme VARCHAR(16) DEFAULT 'dark'"))
-        if "language" not in scols:
-            db.session.execute(text("ALTER TABLE students ADD COLUMN language VARCHAR(8) DEFAULT 'fr'"))
-        # Gamification + avatar columns
+        # Students column upgrades
+        scols = _pg_table_columns("students")
         for col, ddl in [
+            ("theme",       "ALTER TABLE students ADD COLUMN theme VARCHAR(16) DEFAULT 'dark'"),
+            ("language",    "ALTER TABLE students ADD COLUMN language VARCHAR(8) DEFAULT 'fr'"),
             ("points",      "ALTER TABLE students ADD COLUMN points INTEGER DEFAULT 0"),
             ("level",       "ALTER TABLE students ADD COLUMN level INTEGER DEFAULT 1"),
             ("experience",  "ALTER TABLE students ADD COLUMN experience INTEGER DEFAULT 0"),
@@ -556,11 +596,11 @@ def _ensure_schema():
             ("email_verify_token", "ALTER TABLE students ADD COLUMN email_verify_token VARCHAR(80)"),
             ("phone_verified",     "ALTER TABLE students ADD COLUMN phone_verified INTEGER DEFAULT 0"),
             ("phone_otp",          "ALTER TABLE students ADD COLUMN phone_otp VARCHAR(8)"),
-            ("phone_otp_expires",  "ALTER TABLE students ADD COLUMN phone_otp_expires DATETIME"),
+            ("phone_otp_expires",  "ALTER TABLE students ADD COLUMN phone_otp_expires TIMESTAMP"),
             ("gender",             "ALTER TABLE students ADD COLUMN gender VARCHAR(16)"),
             ("custom_theme",       "ALTER TABLE students ADD COLUMN custom_theme TEXT"),
             ("password_reset_token",   "ALTER TABLE students ADD COLUMN password_reset_token VARCHAR(80)"),
-            ("password_reset_expires", "ALTER TABLE students ADD COLUMN password_reset_expires DATETIME"),
+            ("password_reset_expires", "ALTER TABLE students ADD COLUMN password_reset_expires TIMESTAMP"),
             ("is_admin",               "ALTER TABLE students ADD COLUMN is_admin INTEGER DEFAULT 0"),
             ("delegation",             "ALTER TABLE students ADD COLUMN delegation VARCHAR(120)"),
             ("governorate",            "ALTER TABLE students ADD COLUMN governorate VARCHAR(120)"),
@@ -1845,12 +1885,58 @@ def _ai_system_prompt(student: Student | None) -> str:
     )
 
 
+def _ai_history_load(student) -> list[dict]:
+    """Load Sami chat history from Supabase Postgres (last AI_MAX_TURNS*2 messages).
+    Returns [{'role': 'user'|'model', 'text': ...}, ...] in chronological order.
+    Falls back to (and refreshes) the session cache for fast page reloads."""
+    cached = session.get(AI_HISTORY_KEY)
+    if cached:
+        return cached
+    rows = (ChatMessage.query
+            .filter_by(student_id=student.id)
+            .order_by(ChatMessage.created_at.desc())
+            .limit(AI_MAX_TURNS * 2).all())
+    rows.reverse()
+    history = [{"role": ("user" if r.role == "user" else "model"),
+                "text": r.content} for r in rows]
+    session[AI_HISTORY_KEY] = history
+    return history
+
+
+def _ai_history_append(student, user_text: str, assistant_text: str,
+                       model_name: str = "") -> None:
+    """Persist a (user, assistant) turn to Supabase Postgres + refresh the
+    session cache. Capped at AI_MAX_TURNS*2 entries in the cache."""
+    try:
+        db.session.add(ChatMessage(student_id=student.id, role="user",
+                                   content=user_text, model=model_name or None))
+        db.session.add(ChatMessage(student_id=student.id, role="assistant",
+                                   content=assistant_text, model=model_name or None))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+    history = session.get(AI_HISTORY_KEY, [])
+    history = history + [{"role": "user", "text": user_text},
+                         {"role": "model", "text": assistant_text}]
+    session[AI_HISTORY_KEY] = history[-(AI_MAX_TURNS * 2):]
+
+
+def _ai_history_clear(student) -> None:
+    """Wipe Sami history both from session cache and Supabase Postgres."""
+    session.pop(AI_HISTORY_KEY, None)
+    try:
+        ChatMessage.query.filter_by(student_id=student.id).delete()
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
 @app.route("/ai")
 def ai_chat():
     student = current_student()
     if not student:
         return redirect(url_for("login"))
-    history = session.get(AI_HISTORY_KEY, [])
+    history = _ai_history_load(student)
     return render_template("ai_chat.html", student=student, history=history,
                            ai_configured=_gemini_ready(),
                            hf_configured=_hf_ready())
@@ -1858,7 +1944,11 @@ def ai_chat():
 
 @app.route("/ai/reset", methods=["POST"])
 def ai_reset():
-    session.pop(AI_HISTORY_KEY, None)
+    student = current_student()
+    if student:
+        _ai_history_clear(student)
+    else:
+        session.pop(AI_HISTORY_KEY, None)
     return redirect(url_for("ai_chat"))
 
 
@@ -1907,7 +1997,7 @@ def ai_stream():
     if len(user_msg) > AI_MAX_CHARS_PER_MSG:
         user_msg = user_msg[:AI_MAX_CHARS_PER_MSG] + " […]"
 
-    history = session.get(AI_HISTORY_KEY, [])
+    history = _ai_history_load(student)
     gem_history = _trim_history_for_api(history)
     system_prompt = _ai_system_prompt(student)
 
@@ -1940,11 +2030,8 @@ def ai_stream():
                         yield "data: \\n\n\n"
                     # Success → persist + done
                     reply = "".join(full).strip()
-                    new_hist = history + [
-                        {"role": "user", "text": user_msg},
-                        {"role": "model", "text": reply},
-                    ]
-                    session[AI_HISTORY_KEY] = new_hist[-(AI_MAX_TURNS * 2):]
+                    _ai_history_append(student, user_msg, reply,
+                                       model_name=GEMINI_MODEL)
                     yield "event: done\ndata: ok\n\n"
                     return
 
@@ -2815,7 +2902,7 @@ def ai_hf():
     user_msg = (payload.get("message") or "").strip()
     if not user_msg:
         return jsonify({"error": "empty"}), 400
-    history = session.get(AI_HISTORY_KEY, [])
+    history = _ai_history_load(student)
     text_out, err = _hf_generate(_hf_system_prompt(student), history, user_msg)
     if err:
         friendly = {
@@ -2824,11 +2911,7 @@ def ai_hf():
             "hf_loading_timeout":         "Le modèle se réveille, réessaie dans quelques secondes ⏳",
         }.get(err, f"Erreur Sami : {err}")
         return jsonify({"error": friendly}), 503
-    new_hist = history + [
-        {"role": "user", "text": user_msg},
-        {"role": "model", "text": text_out},
-    ]
-    session[AI_HISTORY_KEY] = new_hist[-(AI_MAX_TURNS * 2):]
+    _ai_history_append(student, user_msg, text_out, model_name="hf-router")
     return jsonify({"reply": text_out})
 
 
@@ -3112,6 +3195,27 @@ def _print_startup_audit() -> None:
         print("  Google OAuth — whitelist this redirect URI in Google Cloud Console:", flush=True)
         print(f"     https://{host}/auth/callback", flush=True)
         print(f"     (live debug endpoint: /auth/info)", flush=True)
+    # Supabase Postgres connection probe
+    print("─" * 60, flush=True)
+    try:
+        with app.app_context():
+            r = db.session.execute(text(
+                "SELECT current_database(), version()"
+            )).fetchone()
+            db_name, db_version = r[0], r[1].split(",")[0]
+            tbl_count = db.session.execute(text(
+                "SELECT count(*) FROM information_schema.tables "
+                "WHERE table_schema = current_schema()"
+            )).scalar()
+        print(f"  ✅ Supabase Postgres connected — db={db_name}, tables={tbl_count}", flush=True)
+        print(f"     {db_version}", flush=True)
+        if supabase_client:
+            print(f"  ✅ supabase-py client ready (Auth/Storage/Realtime available)", flush=True)
+        else:
+            print(f"  ⚠️  supabase-py not initialized (SUPABASE_URL or KEY missing)", flush=True)
+    except Exception as e:
+        print(f"  ❌ Supabase Postgres connection FAILED: {e}", flush=True)
+        print(f"     → Check SUPABASE_DB_URL secret (use the Transaction pooler URI, port 6543)", flush=True)
     print("═" * 60 + "\n", flush=True)
 
 
@@ -3127,6 +3231,12 @@ def health_secrets():
     """Public secrets-presence checklist. Reports only whether each key is set,
     NEVER the actual value. Safe to expose for ops dashboards."""
     groups: list[dict] = [
+        {"category": "Database — Supabase",
+         "items": [
+             {"key": "SUPABASE_DB_URL",            "purpose": "Postgres connection (SQLAlchemy)", "required": True,  "set": bool(os.environ.get("SUPABASE_DB_URL"))},
+             {"key": "SUPABASE_URL",               "purpose": "Supabase REST/Realtime base URL",  "required": False, "set": bool(os.environ.get("SUPABASE_URL"))},
+             {"key": "SUPABASE_SERVICE_ROLE_KEY",  "purpose": "Server-side Supabase admin key",   "required": False, "set": bool(os.environ.get("SUPABASE_SERVICE_ROLE_KEY"))},
+         ]},
         {"category": "Core",
          "items": [
              ("SESSION_SECRET",                   "Flask session encryption", True),
