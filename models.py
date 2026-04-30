@@ -254,6 +254,32 @@ class UserFile(db.Model):
         }
 
 
+class ChatMessage(db.Model):
+    """Persistent AI Coach (Sami) conversation history.
+    One row per turn. role ∈ {'user','assistant','system'}.
+    Stored in Supabase Postgres so it survives restarts and is Autoscale-safe."""
+    __tablename__ = "chat_messages"
+
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey("students.id", ondelete="CASCADE"),
+                           nullable=False, index=True)
+    role = db.Column(db.String(16), nullable=False, default="user")     # user|assistant|system
+    content = db.Column(db.Text, nullable=False)
+    model = db.Column(db.String(80), nullable=True)                     # e.g. llama-3.3-70b
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+    student = db.relationship("Student", foreign_keys=[student_id])
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "role": self.role,
+            "content": self.content,
+            "model": self.model,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 class SystemSetting(db.Model):
     """Global platform settings toggled by the admin."""
     __tablename__ = "system_settings"
