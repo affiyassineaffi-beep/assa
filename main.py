@@ -13,7 +13,7 @@ from oauthlib.oauth2 import WebApplicationClient
 from sqlalchemy import or_, and_, text
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from models import db, Student, Grade, Message, Track, Group, GroupMember, Resource, UserFile, SystemSetting, ChatMessage
+from models import db, Student, Grade, Message, Track, Group, GroupMember, Resource, UserFile, SystemSetting, ChatMessage, UserLog
 import storage_manager as sm
 from datetime import timedelta
 from werkzeug.utils import secure_filename
@@ -299,17 +299,65 @@ def level_display(level: str, lang: str | None = None) -> str:
 
 # ─── Auth helpers ─────────────────────────────────────────────────────────────
 def current_student() -> Student | None:
+    """Resolve the logged-in user, enforcing live session validity:
+    - student must still exist
+    - must NOT be banned and must be active
+    - the session_version stamped at login must equal the DB's current version
+      (admin ban / delete / password-reset bumps the version → all live cookies
+      become invalid instantly without restart)."""
     sid = session.get("student_id")
     if not sid:
         return None
-    return db.session.get(Student, sid)
+    student = db.session.get(Student, sid)
+    if student is None:
+        session.clear()
+        return None
+    if int(student.is_banned or 0) == 1 or int(student.is_active or 0) == 0:
+        session.clear()
+        return None
+    cookie_ver = int(session.get("session_version", 0) or 0)
+    if cookie_ver and cookie_ver != int(student.session_version or 1):
+        session.clear()
+        return None
+    return student
 
 
 def save_session(student: Student, remember: bool = True) -> None:
     session["student_id"] = student.id
     session["username"] = student.username
+    session["session_version"] = int(student.session_version or 1)
     # Default = remember: 90-day persistent cookie. If remember=False, cookie expires on browser close.
     session.permanent = bool(remember)
+
+
+def _client_ip() -> str:
+    """Best-effort client IP (honours X-Forwarded-For when behind a proxy)."""
+    xff = (request.headers.get("X-Forwarded-For", "") or "").split(",")[0].strip()
+    return xff or (request.remote_addr or "")
+
+
+def record_login(student: Student, method: str = "password",
+                 note: str | None = None) -> None:
+    """Persist a login event in the `user_logs` table and update the student's
+    last_login_* columns. Failures are swallowed so a logging hiccup never
+    blocks a successful sign-in."""
+    try:
+        ip = _client_ip()
+        ua = (request.headers.get("User-Agent", "") or "")[:400]
+        db.session.add(UserLog(student_id=student.id, event="login",
+                               method=method, ip_address=ip,
+                               user_agent=ua, note=note))
+        student.last_login_at = datetime.utcnow()
+        student.last_login_ip = ip
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
+def revoke_all_sessions(student: Student) -> None:
+    """Bump session_version → every live cookie becomes invalid on next request."""
+    student.session_version = int(student.session_version or 1) + 1
+    db.session.commit()
 
 
 def _smtp_configured() -> bool:
@@ -624,6 +672,10 @@ def _ensure_schema():
             ("is_admin",               "ALTER TABLE students ADD COLUMN is_admin INTEGER DEFAULT 0"),
             ("delegation",             "ALTER TABLE students ADD COLUMN delegation VARCHAR(120)"),
             ("governorate",            "ALTER TABLE students ADD COLUMN governorate VARCHAR(120)"),
+            ("is_banned",              "ALTER TABLE students ADD COLUMN is_banned INTEGER DEFAULT 0"),
+            ("session_version",        "ALTER TABLE students ADD COLUMN session_version INTEGER DEFAULT 1"),
+            ("last_login_at",          "ALTER TABLE students ADD COLUMN last_login_at TIMESTAMP"),
+            ("last_login_ip",          "ALTER TABLE students ADD COLUMN last_login_ip VARCHAR(64)"),
         ]:
             if col not in scols:
                 db.session.execute(text(ddl))
@@ -786,7 +838,11 @@ def login():
             if not student.email_verified:
                 flash("Ton email n'est pas encore vérifié. Vérifie ta boîte mail.", "error")
                 return redirect(url_for("verify_pending", email=student.email or ""))
+            if int(student.is_banned or 0) == 1:
+                flash("Ce compte a été suspendu par un administrateur.", "error")
+                return redirect(url_for("login"))
             save_session(student, remember=remember)
+            record_login(student, method="password")
             flash(t("success_welcome"), "success")
             return redirect(url_for("dashboard"))
         flash(t("err_login_failed"), "error")
@@ -811,6 +867,7 @@ def verify_email(token: str):
     student.email_verify_token = None
     db.session.commit()
     save_session(student)
+    record_login(student, method="email_verify")
     flash("Email vérifié ! Bienvenue 🎉", "success")
     return redirect(url_for("dashboard"))
 
@@ -1035,7 +1092,11 @@ def google_callback():
     student.email_verified = 1
     student.is_active = 1
     db.session.commit()
+    if int(student.is_banned or 0) == 1:
+        flash("Ce compte a été suspendu par un administrateur.", "error")
+        return redirect(url_for("login"))
     save_session(student)
+    record_login(student, method="google")
     if not profile_is_complete(student):
         flash(t("complete_profile_prompt"), "success")
         return redirect(url_for("complete_profile"))
@@ -3097,6 +3158,121 @@ def admin_grant():
     target.is_admin = 1 if not target.is_admin else 0
     db.session.commit()
     return jsonify({"ok": True, "is_admin": bool(target.is_admin), "username": target.username})
+
+
+# ─── Admin: ban / unban / delete (with instant session revocation) ───────────
+@app.route("/admin-master/ban", methods=["POST"])
+def admin_ban():
+    student = current_student()
+    if not _is_admin(student):
+        abort(404)
+    payload = request.get_json(silent=True) or {}
+    uid = payload.get("user_id")
+    target = db.session.get(Student, uid) if uid else None
+    if not target:
+        return jsonify({"error": "user not found"}), 404
+    if target.id == student.id:
+        return jsonify({"error": "cannot ban yourself"}), 400
+    target.is_banned = 0 if int(target.is_banned or 0) == 1 else 1
+    revoke_all_sessions(target)  # bumps session_version → kicks live cookies
+    try:
+        db.session.add(UserLog(student_id=target.id,
+                               event=("unbanned" if target.is_banned == 0 else "banned"),
+                               method="admin", ip_address=_client_ip(),
+                               user_agent=(request.headers.get("User-Agent","") or "")[:400],
+                               note=f"by admin {student.username}"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+    return jsonify({"ok": True, "is_banned": bool(target.is_banned),
+                    "username": target.username})
+
+
+@app.route("/admin-master/delete-user", methods=["POST"])
+def admin_delete_user():
+    student = current_student()
+    if not _is_admin(student):
+        abort(404)
+    payload = request.get_json(silent=True) or {}
+    uid = payload.get("user_id")
+    target = db.session.get(Student, uid) if uid else None
+    if not target:
+        return jsonify({"error": "user not found"}), 404
+    if target.id == student.id:
+        return jsonify({"error": "cannot delete yourself"}), 400
+    username = target.username
+    try:
+        # Bump session_version FIRST so any live cookie is invalidated even if
+        # the cascading delete races with an in-flight request.
+        revoke_all_sessions(target)
+        db.session.delete(target)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+    return jsonify({"ok": True, "deleted": username})
+
+
+@app.route("/admin-master/user/<int:uid>/logs")
+def admin_user_logs(uid: int):
+    student = current_student()
+    if not _is_admin(student):
+        abort(404)
+    target = db.session.get(Student, uid)
+    if not target:
+        return jsonify({"error": "user not found"}), 404
+    rows = (UserLog.query.filter_by(student_id=uid)
+            .order_by(UserLog.created_at.desc()).limit(100).all())
+    return jsonify({
+        "user": {"id": target.id, "username": target.username, "email": target.email},
+        "logs": [r.to_dict() for r in rows],
+    })
+
+
+@app.route("/admin-master/db-stats")
+def admin_db_stats():
+    """Live row counts for every public table in Supabase Postgres."""
+    student = current_student()
+    if not _is_admin(student):
+        abort(404)
+    rows = db.session.execute(text(
+        "SELECT table_name FROM information_schema.tables "
+        "WHERE table_schema = current_schema() AND table_type='BASE TABLE' "
+        "ORDER BY table_name"
+    )).fetchall()
+    stats = []
+    for (t_name,) in rows:
+        try:
+            n = db.session.execute(text(f'SELECT count(*) FROM "{t_name}"')).scalar()
+        except Exception:
+            n = None
+        stats.append({"table": t_name, "rows": n})
+    # PostgreSQL version + db size
+    try:
+        ver = db.session.execute(text("SELECT version()")).scalar()
+        size = db.session.execute(text(
+            "SELECT pg_size_pretty(pg_database_size(current_database()))"
+        )).scalar()
+    except Exception:
+        ver, size = None, None
+    return jsonify({"version": ver, "size": size, "tables": stats})
+
+
+@app.route("/admin-master/recent-logins")
+def admin_recent_logins():
+    """Last 50 login events across all users (Connection Logging dashboard)."""
+    student = current_student()
+    if not _is_admin(student):
+        abort(404)
+    rows = (db.session.query(UserLog, Student)
+            .join(Student, Student.id == UserLog.student_id)
+            .order_by(UserLog.created_at.desc()).limit(50).all())
+    return jsonify({"events": [
+        {**log.to_dict(),
+         "username": stu.username,
+         "email": stu.email}
+        for log, stu in rows
+    ]})
 
 
 # ─── Logout ───────────────────────────────────────────────────────────────────

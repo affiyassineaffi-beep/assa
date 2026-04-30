@@ -349,20 +349,28 @@
 
   <!-- Users Table -->
   <div class="card">
-    <div class="card-title"><span></span>Recent Users (last 50)</div>
+    <div class="card-title" style="justify-content:space-between;">
+      <span>Recent Users (last 50)</span>
+      <input id="user-search" type="search" placeholder="🔍 Filter by name/email…"
+             style="background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text);
+                    padding:6px 10px;border-radius:8px;font-size:.82rem;min-width:220px;">
+    </div>
     <div class="tbl-wrap">
-      <table>
+      <table id="users-table">
         <thead>
           <tr>
             <th>ID</th><th>Username</th><th>Email</th>
-            <th>Level</th><th>School</th><th>Role</th><th>Action</th>
+            <th>Level</th><th>School</th><th>Role</th>
+            <th>Last login</th><th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {% for u in users %}
-          <tr>
+          <tr data-uid="{{ u.id }}" data-banned="{{ 1 if u.is_banned else 0 }}">
             <td>{{ u.id }}</td>
-            <td><b>{{ u.username }}</b></td>
+            <td><b>{{ u.username }}</b>{% if u.is_banned %}
+              <span class="pill" style="background:#7f1d1d;color:#fecaca;margin-left:6px;">BANNED</span>
+            {% endif %}</td>
             <td style="color:var(--muted)">{{ u.email or '—' }}</td>
             <td>Lvl {{ u.level }}</td>
             <td style="font-size:.78rem;color:var(--muted)">{{ (u.school_name or '—')[:30] }}</td>
@@ -371,11 +379,23 @@
                 {{ 'Admin' if u.is_admin else 'User' }}
               </span>
             </td>
-            <td>
-              <button class="btn btn-ghost" style="padding:5px 12px;font-size:.75rem"
+            <td style="font-size:.74rem;color:var(--muted)">
+              {{ (u.last_login_at.strftime('%Y-%m-%d %H:%M') if u.last_login_at else '—') }}
+              {% if u.last_login_ip %}<br><span style="opacity:.7">{{ u.last_login_ip }}</span>{% endif %}
+            </td>
+            <td style="white-space:nowrap;">
+              <button class="btn btn-ghost" style="padding:4px 8px;font-size:.7rem"
+                      onclick="viewLogs({{ u.id }}, '{{ u.username|e }}')">Logs</button>
+              <button class="btn btn-ghost" style="padding:4px 8px;font-size:.7rem"
                       onclick="toggleAdmin({{ u.id }}, this)">
-                {{ 'Revoke' if u.is_admin else 'Grant Admin' }}
+                {{ '↓ User' if u.is_admin else '↑ Admin' }}
               </button>
+              <button class="btn btn-ghost" style="padding:4px 8px;font-size:.7rem;color:#fbbf24;"
+                      onclick="toggleBan({{ u.id }}, this)">
+                {{ 'Unban' if u.is_banned else 'Ban' }}
+              </button>
+              <button class="btn btn-ghost" style="padding:4px 8px;font-size:.7rem;color:#f87171;"
+                      onclick="deleteUser({{ u.id }}, '{{ u.username|e }}')">Delete</button>
             </td>
           </tr>
           {% endfor %}
@@ -384,6 +404,55 @@
     </div>
   </div>
 
+  <!-- Database — live row counts from Supabase Postgres -->
+  <div class="card">
+    <div class="card-title" style="justify-content:space-between;">
+      <span>Database — Supabase Postgres</span>
+      <button class="btn btn-ghost" style="padding:5px 12px;font-size:.75rem" onclick="loadDbStats()">↻ Refresh</button>
+    </div>
+    <div id="db-meta" style="font-size:.78rem;color:var(--muted);margin-bottom:10px;">Loading…</div>
+    <div class="tbl-wrap">
+      <table id="db-table">
+        <thead><tr><th>Table</th><th>Rows</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Recent Logins (Connection Logging) -->
+  <div class="card">
+    <div class="card-title" style="justify-content:space-between;">
+      <span>Recent Logins (last 50)</span>
+      <button class="btn btn-ghost" style="padding:5px 12px;font-size:.75rem" onclick="loadRecentLogins()">↻ Refresh</button>
+    </div>
+    <div class="tbl-wrap">
+      <table id="logins-table">
+        <thead><tr>
+          <th>When</th><th>User</th><th>Method</th><th>IP</th><th>Device</th>
+        </tr></thead>
+        <tbody><tr><td colspan="5" style="color:var(--muted)">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Login-history modal -->
+<div id="logs-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);
+     z-index:9999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;
+              max-width:780px;width:100%;max-height:80vh;overflow:auto;padding:20px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <h3 id="logs-title" style="margin:0;">Login history</h3>
+      <button class="btn btn-ghost" onclick="document.getElementById('logs-modal').style.display='none'">✕</button>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>When</th><th>Event</th><th>Method</th><th>IP</th><th>Device</th></tr></thead>
+        <tbody id="logs-tbody"></tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
@@ -445,6 +514,98 @@ function toggleAdmin(uid, btn){
 socket.on('system_broadcast', (d)=>{
   toast('📡 Broadcast: ' + d.message);
 });
+
+/* ── Live filter for Users table ── */
+document.getElementById('user-search').addEventListener('input', function(){
+  const q = this.value.toLowerCase();
+  document.querySelectorAll('#users-table tbody tr').forEach(tr=>{
+    tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+});
+
+/* ── Ban / unban (with instant session revocation server-side) ── */
+function toggleBan(uid, btn){
+  if(!confirm('Toggle ban for this user? Their active session will be revoked immediately.')) return;
+  fetch('/admin-master/ban',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({user_id:uid})})
+    .then(r=>r.json()).then(d=>{
+      if(d.error){ toast(d.error, false); return; }
+      btn.textContent = d.is_banned ? 'Unban' : 'Ban';
+      const row = document.querySelector(`tr[data-uid="${uid}"]`);
+      row.dataset.banned = d.is_banned ? 1 : 0;
+      // toggle banned pill
+      const nameCell = row.querySelector('td:nth-child(2)');
+      const existing = nameCell.querySelector('.pill');
+      if(d.is_banned && !existing){
+        const p = document.createElement('span');
+        p.className='pill'; p.style.cssText='background:#7f1d1d;color:#fecaca;margin-left:6px;';
+        p.textContent='BANNED'; nameCell.appendChild(p);
+      } else if(!d.is_banned && existing){ existing.remove(); }
+      toast((d.is_banned ? '🚫 ' : '✅ ') + d.username + (d.is_banned?' banned (session revoked)':' unbanned'));
+    }).catch(()=>toast('Ban toggle failed', false));
+}
+
+/* ── Delete user (cascades + revokes sessions) ── */
+function deleteUser(uid, username){
+  if(!confirm(`Permanently DELETE "${username}"? This removes all their data, messages, and AI history.`)) return;
+  if(!confirm('Are you absolutely sure? This cannot be undone.')) return;
+  fetch('/admin-master/delete-user',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({user_id:uid})})
+    .then(r=>r.json()).then(d=>{
+      if(d.error){ toast(d.error, false); return; }
+      const row = document.querySelector(`tr[data-uid="${uid}"]`);
+      if(row) row.remove();
+      toast('🗑 Deleted ' + d.deleted);
+    }).catch(()=>toast('Delete failed', false));
+}
+
+/* ── View per-user login history ── */
+function viewLogs(uid, username){
+  fetch(`/admin-master/user/${uid}/logs`).then(r=>r.json()).then(d=>{
+    if(d.error){ toast(d.error, false); return; }
+    document.getElementById('logs-title').textContent = `History — ${username}`;
+    const tb = document.getElementById('logs-tbody');
+    tb.innerHTML = d.logs.length === 0
+      ? '<tr><td colspan="5" style="color:var(--muted)">No events yet.</td></tr>'
+      : d.logs.map(e=>`<tr>
+          <td style="white-space:nowrap;">${(e.created_at||'').replace('T',' ').slice(0,19)}</td>
+          <td>${e.event}</td>
+          <td>${e.method||'—'}</td>
+          <td>${e.ip_address||'—'}</td>
+          <td style="font-size:.7rem;color:var(--muted);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(e.user_agent||'').slice(0,80)}</td>
+        </tr>`).join('');
+    document.getElementById('logs-modal').style.display = 'flex';
+  }).catch(()=>toast('Could not load logs', false));
+}
+
+/* ── Live DB stats from Supabase ── */
+function loadDbStats(){
+  fetch('/admin-master/db-stats').then(r=>r.json()).then(d=>{
+    if(d.error){ toast(d.error, false); return; }
+    document.getElementById('db-meta').textContent =
+      `${d.version || ''} · DB size: ${d.size || '—'} · ${d.tables.length} tables`;
+    document.querySelector('#db-table tbody').innerHTML =
+      d.tables.map(t=>`<tr><td><b>${t.table}</b></td><td>${t.rows ?? '—'}</td></tr>`).join('');
+  }).catch(()=>toast('Could not load DB stats', false));
+}
+
+function loadRecentLogins(){
+  fetch('/admin-master/recent-logins').then(r=>r.json()).then(d=>{
+    const tb = document.querySelector('#logins-table tbody');
+    tb.innerHTML = d.events.length === 0
+      ? '<tr><td colspan="5" style="color:var(--muted)">No logins recorded yet.</td></tr>'
+      : d.events.map(e=>`<tr>
+          <td style="white-space:nowrap;">${(e.created_at||'').replace('T',' ').slice(0,19)}</td>
+          <td><b>${e.username||''}</b> <span style="color:var(--muted);font-size:.72rem">${e.email||''}</span></td>
+          <td>${e.method||'—'}</td>
+          <td>${e.ip_address||'—'}</td>
+          <td style="font-size:.7rem;color:var(--muted);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(e.user_agent||'').slice(0,80)}</td>
+        </tr>`).join('');
+  }).catch(()=>{});
+}
+
+loadDbStats();
+loadRecentLogins();
 </script>
 </body>
 </html>
