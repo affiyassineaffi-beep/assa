@@ -571,7 +571,27 @@ def _pg_table_columns(table_name: str) -> set[str]:
 
 def _ensure_schema():
     """Postgres schema bootstrap: create all tables, then add any columns
-    introduced after initial deployment. Idempotent — safe to call repeatedly."""
+    introduced after initial deployment. Idempotent — safe to call repeatedly.
+
+    Also detects schema drift from pre-existing Supabase template tables
+    (e.g. a `messages` table with `sender_id uuid` instead of our `integer`)
+    and drops them so `db.create_all()` can rebuild them from our models."""
+    # ── Drift detection: if a key table has a fundamentally wrong shape,
+    # drop it BEFORE create_all so the model definition wins.
+    try:
+        bad = db.session.execute(text(
+            "SELECT data_type FROM information_schema.columns "
+            "WHERE table_schema=current_schema() AND table_name='messages' "
+            "  AND column_name='sender_id'"
+        )).scalar()
+        if bad and bad.lower() != "integer":
+            print(f"  ⚠️  Dropping legacy `messages` table (sender_id={bad}, "
+                  f"expected integer)", flush=True)
+            db.session.execute(text("DROP TABLE IF EXISTS public.messages CASCADE"))
+            db.session.commit()
+    except Exception:
+        db.session.rollback()
+
     db.create_all()
     try:
         # messages.seen_at + messages.group_id
