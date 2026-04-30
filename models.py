@@ -51,6 +51,12 @@ class Student(db.Model):
     avatar_url = db.Column(db.String(500), nullable=True)
 
     is_admin = db.Column(db.Integer, nullable=False, default=0)
+    is_banned = db.Column(db.Integer, nullable=False, default=0)
+    # Bumped on ban/unban/delete/password-reset → invalidates all live sessions.
+    # Stored in the cookie at login time; on every request the value must match.
+    session_version = db.Column(db.Integer, nullable=False, default=1)
+    last_login_at = db.Column(db.DateTime, nullable=True)
+    last_login_ip = db.Column(db.String(64), nullable=True)
     delegation = db.Column(db.String(120), nullable=True)
     governorate = db.Column(db.String(120), nullable=True)
 
@@ -250,6 +256,37 @@ class UserFile(db.Model):
             "file_type": self.file_type,
             "original_name": self.original_name,
             "size_bytes": self.size_bytes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class UserLog(db.Model):
+    """Audit log: one row per successful login (or admin-flagged event).
+    Captures IP, user-agent, method (password/google/magic), timestamp.
+    Visible to admins from the Admin Dashboard."""
+    __tablename__ = "user_logs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey("students.id", ondelete="CASCADE"),
+                           nullable=False, index=True)
+    event = db.Column(db.String(32), nullable=False, default="login")    # login|logout|banned|admin_action
+    method = db.Column(db.String(32), nullable=True)                     # password|google|magic|...
+    ip_address = db.Column(db.String(64), nullable=True)
+    user_agent = db.Column(db.String(400), nullable=True)
+    note = db.Column(db.String(400), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+    student = db.relationship("Student", foreign_keys=[student_id])
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "student_id": self.student_id,
+            "event": self.event,
+            "method": self.method,
+            "ip_address": self.ip_address,
+            "user_agent": self.user_agent,
+            "note": self.note,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
