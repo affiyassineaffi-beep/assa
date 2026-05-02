@@ -257,7 +257,7 @@ def detect_browser_lang() -> str:
                 return base
     except Exception:
         pass
-    return "fr"
+    return "ar"   # Arabic default for Tunisian users
 
 
 def get_lang() -> str:
