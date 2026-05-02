@@ -2321,3 +2321,93 @@ select#stg-school:focus, select[name="gender"]:focus {
   border: 1px solid rgba(244,114,182,.45);
   color: #ffd7e8;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Arabic / RTL layout — comprehensive rules
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Base direction already set by body.rtl { direction: rtl; } */
+
+/* Navbar */
+body.rtl .navbar-inner      { flex-direction: row-reverse; }
+body.rtl .navbar-brand      { margin-right: 0; margin-left: auto; }
+body.rtl .navbar-right      { margin-left: 0; margin-right: auto; }
+
+/* Nav links, badges */
+body.rtl .nav-link          { flex-direction: row-reverse; }
+body.rtl .unread-badge      { margin-left: 0; margin-right: 4px; }
+
+/* Cards & sections */
+body.rtl .card              { text-align: right; }
+body.rtl .card-title        { flex-direction: row-reverse; }
+body.rtl .stat-block        { text-align: right; }
+
+/* Forms */
+body.rtl .form label        { text-align: right; }
+body.rtl .form input,
+body.rtl .form select,
+body.rtl .form textarea     { text-align: right; direction: rtl; }
+body.rtl .form-row          { flex-direction: row-reverse; }
+body.rtl .input-icon-wrap svg { left: auto; right: 12px; }
+body.rtl input[type="search"] { text-align: right; }
+
+/* Buttons row */
+body.rtl .btn-row,
+body.rtl .action-row        { flex-direction: row-reverse; }
+
+/* Tables */
+body.rtl table              { text-align: right; }
+body.rtl th, body.rtl td   { text-align: right; }
+
+/* Flash / toast messages */
+body.rtl .flash-messages    { right: auto; left: 20px; }
+body.rtl .alert             { flex-direction: row-reverse; }
+
+/* Bottom navigation (mobile) */
+body.rtl .bottom-nav        { direction: rtl; }
+body.rtl .bn-item           { flex-direction: column; }
+
+/* Chat bubbles */
+body.rtl .msg-row                   { flex-direction: row-reverse; }
+body.rtl .msg-row.own               { flex-direction: row; }
+body.rtl .bubble                    { border-radius: 18px 4px 18px 18px; }
+body.rtl .msg-row.own .bubble       { border-radius: 4px 18px 18px 18px; }
+body.rtl .chat-input-row            { flex-direction: row-reverse; }
+body.rtl .chat-input                { text-align: right; }
+body.rtl .chat-bubble               { flex-direction: row-reverse; }
+body.rtl .chat-bubble.own           { flex-direction: row; }
+
+/* Sidebar / drawer */
+body.rtl .sidebar           { right: 0; left: auto; transform: translateX(100%); }
+body.rtl .sidebar.open      { transform: translateX(0); }
+
+/* Avatar / media */
+body.rtl .avatar-wrap       { margin-right: 0; margin-left: 12px; }
+body.rtl .user-row          { flex-direction: row-reverse; }
+
+/* Grade table specifics */
+body.rtl .grade-row         { flex-direction: row-reverse; }
+body.rtl .grade-actions     { margin-left: 0; margin-right: auto; }
+
+/* Toggle switch (already handled but reinforce) */
+body.rtl .toggle-wrap       { flex-direction: row-reverse; }
+
+/* Section headers */
+body.rtl .section-header    { flex-direction: row-reverse; }
+body.rtl .eyebrow           { letter-spacing: 0; }  /* Arabic doesn't need tracking */
+
+/* Hero */
+body.rtl .hero-card         { text-align: right; }
+body.rtl .hero-lead         { text-align: right; }
+
+/* Search / filter inputs */
+body.rtl #user-search       { text-align: right; direction: rtl; }
+
+/* Arabic numeral font feature */
+body.rtl                    { font-feature-settings: "locl" on; }
+
+/* Responsive RTL fixes */
+@media (max-width: 640px) {
+  body.rtl .card-title { flex-direction: column; align-items: flex-end; }
+  body.rtl .btn-row    { justify-content: flex-start; }
+}
