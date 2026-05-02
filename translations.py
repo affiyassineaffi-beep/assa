@@ -150,6 +150,92 @@ T: dict[str, dict[str, str]] = {
     "theme_dark": {"fr": "Sombre", "ar": "داكن", "en": "Dark"},
     "theme_light": {"fr": "Clair", "ar": "فاتح", "en": "Light"},
     "theme_system": {"fr": "Système", "ar": "النظام", "en": "System"},
+
+    # ── Admin Dashboard ───────────────────────────────────────────
+    "admin_dashboard":       {"fr": "Tableau d'administration", "ar": "لوحة الإدارة", "en": "Admin Dashboard"},
+    "admin_users":           {"fr": "Utilisateurs", "ar": "المستخدمون", "en": "Users"},
+    "admin_ban":             {"fr": "Bannir", "ar": "حظر", "en": "Ban"},
+    "admin_unban":           {"fr": "Lever le bannissement", "ar": "رفع الحظر", "en": "Unban"},
+    "admin_delete_user":     {"fr": "Supprimer l'utilisateur", "ar": "حذف المستخدم", "en": "Delete user"},
+    "admin_grant_admin":     {"fr": "Accorder admin", "ar": "منح صلاحية المشرف", "en": "Grant admin"},
+    "admin_revoke_admin":    {"fr": "Révoquer admin", "ar": "سحب صلاحية المشرف", "en": "Revoke admin"},
+    "admin_view_logs":       {"fr": "Voir les journaux", "ar": "عرض السجلات", "en": "View logs"},
+    "admin_recent_logins":   {"fr": "Connexions récentes", "ar": "أحدث تسجيلات الدخول", "en": "Recent logins"},
+    "admin_db_stats":        {"fr": "Statistiques base de données", "ar": "إحصائيات قاعدة البيانات", "en": "Database stats"},
+    "admin_broadcast":       {"fr": "Diffusion globale", "ar": "إرسال إشعار للجميع", "en": "Broadcast"},
+    "admin_neon_mode":       {"fr": "Mode Neon", "ar": "وضع نيون", "en": "Neon mode"},
+    "admin_total_users":     {"fr": "Total utilisateurs", "ar": "إجمالي المستخدمين", "en": "Total users"},
+    "admin_total_files":     {"fr": "Total fichiers", "ar": "إجمالي الملفات", "en": "Total files"},
+    "admin_session_revoked": {"fr": "Session révoquée immédiatement", "ar": "تم إلغاء الجلسة فوراً", "en": "Session revoked instantly"},
+    "admin_banned_label":    {"fr": "BANNI", "ar": "محظور", "en": "BANNED"},
+    "admin_secrets_audit":   {"fr": "Audit des secrets", "ar": "مراجعة الأسرار", "en": "Secrets audit"},
+
+    # ── Connection logging ────────────────────────────────────────
+    "log_login":         {"fr": "Connexion", "ar": "تسجيل دخول", "en": "Login"},
+    "log_logout":        {"fr": "Déconnexion", "ar": "تسجيل خروج", "en": "Logout"},
+    "log_banned":        {"fr": "Banni", "ar": "تم الحظر", "en": "Banned"},
+    "log_unbanned":      {"fr": "Débanni", "ar": "تم رفع الحظر", "en": "Unbanned"},
+    "log_method":        {"fr": "Méthode", "ar": "طريقة الدخول", "en": "Method"},
+    "log_ip":            {"fr": "Adresse IP", "ar": "عنوان IP", "en": "IP address"},
+    "log_device":        {"fr": "Appareil", "ar": "الجهاز", "en": "Device"},
+    "log_when":          {"fr": "Quand", "ar": "التاريخ", "en": "When"},
+    "log_no_events":     {"fr": "Aucun événement enregistré.", "ar": "لا توجد أحداث مسجّلة.", "en": "No events recorded."},
+
+    # ── Upload / Storage ──────────────────────────────────────────
+    "upload_success":    {"fr": "Fichier envoyé avec succès.", "ar": "تم رفع الملف بنجاح.", "en": "File uploaded successfully."},
+    "upload_local_warn": {"fr": "Stockage local uniquement — fichier perdu au redémarrage.", "ar": "تخزين محلي فقط — سيضيع الملف عند إعادة التشغيل.", "en": "Local storage only — file lost on restart."},
+    "upload_too_large":  {"fr": "Fichier trop volumineux (limite : 25 Mo).", "ar": "الملف كبير جداً (الحد: 25 ميغابايت).", "en": "File too large (limit: 25 MB)."},
+    "upload_bad_type":   {"fr": "Type de fichier non autorisé.", "ar": "نوع الملف غير مسموح به.", "en": "File type not allowed."},
+    "upload_cloudinary": {"fr": "Stocké sur Cloudinary.", "ar": "تم الحفظ على Cloudinary.", "en": "Stored on Cloudinary."},
+
+    # ── Chat & social ─────────────────────────────────────────────
+    "chat_rooms":        {"fr": "Salles de discussion", "ar": "غرف الدردشة", "en": "Chat rooms"},
+    "chat_placeholder":  {"fr": "Écrire un message…", "ar": "اكتب رسالة…", "en": "Write a message…"},
+    "chat_you":          {"fr": "Vous", "ar": "أنت", "en": "You"},
+    "group_chat":        {"fr": "Groupe", "ar": "المجموعة", "en": "Group"},
+    "private_msg":       {"fr": "Message privé", "ar": "رسالة خاصة", "en": "Private message"},
+    "online_now":        {"fr": "En ligne", "ar": "متصل الآن", "en": "Online"},
+    "typing":            {"fr": "en train d'écrire…", "ar": "يكتب…", "en": "typing…"},
+
+    # ── Resources & files ─────────────────────────────────────────
+    "resources":         {"fr": "Ressources", "ar": "الموارد التعليمية", "en": "Resources"},
+    "resource_new":      {"fr": "Ajouter une ressource", "ar": "إضافة مورد", "en": "Add resource"},
+    "resource_title":    {"fr": "Titre", "ar": "العنوان", "en": "Title"},
+    "resource_subject":  {"fr": "Matière", "ar": "المادة", "en": "Subject"},
+    "resource_file":     {"fr": "Fichier", "ar": "الملف", "en": "File"},
+    "resource_download": {"fr": "Télécharger", "ar": "تنزيل", "en": "Download"},
+
+    # ── Focus / Pomodoro ──────────────────────────────────────────
+    "focus_mode":        {"fr": "Mode focus", "ar": "وضع التركيز", "en": "Focus mode"},
+    "focus_start":       {"fr": "Démarrer", "ar": "ابدأ", "en": "Start"},
+    "focus_pause":       {"fr": "Pause", "ar": "إيقاف مؤقت", "en": "Pause"},
+    "focus_reset":       {"fr": "Réinitialiser", "ar": "إعادة ضبط", "en": "Reset"},
+    "focus_session":     {"fr": "Session de travail", "ar": "جلسة عمل", "en": "Work session"},
+    "focus_break":       {"fr": "Pause courte", "ar": "استراحة قصيرة", "en": "Short break"},
+
+    # ── Settings (new) ────────────────────────────────────────────
+    "settings_account":     {"fr": "Compte", "ar": "الحساب", "en": "Account"},
+    "settings_appearance":  {"fr": "Apparence", "ar": "المظهر", "en": "Appearance"},
+    "settings_security":    {"fr": "Sécurité", "ar": "الأمان", "en": "Security"},
+    "settings_saved":       {"fr": "Paramètres enregistrés.", "ar": "تم حفظ الإعدادات.", "en": "Settings saved."},
+    "settings_avatar":      {"fr": "Photo de profil", "ar": "صورة الملف الشخصي", "en": "Profile picture"},
+    "settings_change_pass": {"fr": "Changer le mot de passe", "ar": "تغيير كلمة المرور", "en": "Change password"},
+    "settings_logout_all":  {"fr": "Se déconnecter partout", "ar": "تسجيل الخروج من كل الأجهزة", "en": "Sign out everywhere"},
+
+    # ── General UI ────────────────────────────────────────────────
+    "back":          {"fr": "Retour", "ar": "رجوع", "en": "Back"},
+    "loading":       {"fr": "Chargement…", "ar": "جارٍ التحميل…", "en": "Loading…"},
+    "refresh":       {"fr": "Actualiser", "ar": "تحديث", "en": "Refresh"},
+    "view_all":      {"fr": "Voir tout", "ar": "عرض الكل", "en": "View all"},
+    "confirm":       {"fr": "Confirmer", "ar": "تأكيد", "en": "Confirm"},
+    "warning":       {"fr": "Attention", "ar": "تحذير", "en": "Warning"},
+    "error_generic": {"fr": "Une erreur s'est produite.", "ar": "حدث خطأ ما.", "en": "An error occurred."},
+    "success":       {"fr": "Succès", "ar": "نجاح", "en": "Success"},
+    "level":         {"fr": "Niveau", "ar": "المستوى", "en": "Level"},
+    "school":        {"fr": "École", "ar": "المدرسة", "en": "School"},
+    "username_label":{"fr": "Nom d'utilisateur", "ar": "اسم المستخدم", "en": "Username"},
+    "joined":        {"fr": "Inscrit le", "ar": "انضم في", "en": "Joined"},
+    "last_login":    {"fr": "Dernière connexion", "ar": "آخر دخول", "en": "Last login"},
 }
 
 
@@ -173,17 +259,42 @@ def tr(key: str, lang: str = "fr") -> str:
 # context plus the major world languages.  Hebrew was removed at user
 # request.  Anything without a full translation table falls back via tr().
 LANGUAGES: dict[str, tuple[str, str, bool]] = {
-    "fr": ("French",     "Français",     False),
-    "ar": ("Arabic",     "العربية",       True),
-    "en": ("English",    "English",      False),
-    "es": ("Spanish",    "Español",      False),
-    "it": ("Italian",    "Italiano",     False),
-    "de": ("German",     "Deutsch",      False),
-    "pt": ("Portuguese", "Português",    False),
-    "tr": ("Turkish",    "Türkçe",       False),
-    "ru": ("Russian",    "Русский",      False),
-    "zh": ("Chinese",    "中文",          False),
-    "ja": ("Japanese",   "日本語",        False),
+    # ── Tunisia & Maghreb ────────────────────────────────────────────────────
+    "fr":  ("French",      "Français",      False),
+    "ar":  ("Arabic",      "العربية",        True),
+    "en":  ("English",     "English",       False),
+    "zgh": ("Tamazight",   "ⵜⴰⵎⴰⵣⵉⵖⵜ",       False),
+    # ── Europe — major ───────────────────────────────────────────────────────
+    "es":  ("Spanish",     "Español",       False),
+    "it":  ("Italian",     "Italiano",      False),
+    "de":  ("German",      "Deutsch",       False),
+    "pt":  ("Portuguese",  "Português",     False),
+    "nl":  ("Dutch",       "Nederlands",    False),
+    "el":  ("Greek",       "Ελληνικά",       False),
+    "pl":  ("Polish",      "Polski",        False),
+    "ro":  ("Romanian",    "Română",        False),
+    "cs":  ("Czech",       "Čeština",       False),
+    "hu":  ("Hungarian",   "Magyar",        False),
+    "sv":  ("Swedish",     "Svenska",       False),
+    "no":  ("Norwegian",   "Norsk",         False),
+    "da":  ("Danish",      "Dansk",         False),
+    "fi":  ("Finnish",     "Suomi",         False),
+    "uk":  ("Ukrainian",   "Українська",    False),
+    "ru":  ("Russian",     "Русский",       False),
+    # ── Middle East & Asia ───────────────────────────────────────────────────
+    "tr":  ("Turkish",     "Türkçe",        False),
+    "fa":  ("Persian",     "فارسی",          True),
+    "ur":  ("Urdu",        "اردو",            True),
+    "hi":  ("Hindi",       "हिन्दी",          False),
+    "bn":  ("Bengali",     "বাংলা",          False),
+    "zh":  ("Chinese",     "中文",           False),
+    "ja":  ("Japanese",    "日本語",         False),
+    "ko":  ("Korean",      "한국어",          False),
+    "vi":  ("Vietnamese",  "Tiếng Việt",    False),
+    "th":  ("Thai",        "ไทย",            False),
+    "id":  ("Indonesian",  "Bahasa Indonesia", False),
+    "ms":  ("Malay",       "Bahasa Melayu", False),
+    "ca":  ("Catalan",     "Català",        False),
 }
 
 RTL_LANGS = {code for code, (_, _, rtl) in LANGUAGES.items() if rtl}

@@ -33,3 +33,21 @@ outputType = "webview"
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[userenv]
+
+[userenv.shared]
+GOOGLE_OAUTH_CLIENT_ID = "651083701892-hp44ba4498tuha4d7h6dpdm8je7ongg4.apps.googleusercontent.com"
+GOOGLE_OAUTH_CLIENT_SECRET = "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"
+GEMINI_API_KEY = "AIzaSyAls3iITUzg968v4ro8LRCV0z4i22OQiAE"
+YOUTUBE_API_KEY = "AIzaSyBYr0LVQbQh85N4RuNVHxPyXVYAvTCCosA"
+CLOUDINARY_API_SECRET = "-WC9uAY7m5Z3za687ALkPb-ARsY"
+SMTP_PASS = "tewj hlrx wyuj gckk"
+SMTP_PORT = "587"
+SMTP_HOST = "yyuyassine882@gmail.com"
+SMTP_USER = "affiyassineaffi@gmail.com"
+CLOUDINARY_API_KEY = "648875447967379"
+HF_MODEL = "meta-llama/Meta-Llama-3-8B-Instruct"
+ADMIN_EMAIL = "affiyassineaffi@gmail.com"
+SUPABASE_DB_URL = "postgresql://postgres.iajlsowlcaoqzioijkpi:yassine1302009@aws-1-eu-central-1.pooler.supabase.com:6543/postgres"
+CLOUDINARY_CLOUD_NAME = "dqgaxnjeo"

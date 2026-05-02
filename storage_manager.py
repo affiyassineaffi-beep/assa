@@ -121,33 +121,45 @@ def route_upload(file_bytes: bytes, filename: str,
         "public_id": str,     # provider-side identifier
         "provider": str,      # 'cloudinary' | 'firebase' | 'local'
         "file_type": str,     # 'image' | 'video' | 'other'
-        "error": str | None,  # set if the preferred provider failed
+        "warning": str | None,  # set if using local fallback or cloud error
       }
     """
     file_type = _detect_type(filename, mime)
-    error = None
+    warning = None
 
-    if file_type == "image" and _cloudinary_configured():
-        try:
-            result = upload_to_cloudinary(file_bytes, filename)
-            result["file_type"] = "image"
-            result["error"] = None
-            return result
-        except Exception as exc:
-            error = f"Cloudinary error: {exc}"
+    if file_type == "image":
+        if _cloudinary_configured():
+            try:
+                result = upload_to_cloudinary(file_bytes, filename)
+                result["file_type"] = "image"
+                result["warning"] = None
+                result["error"] = None
+                return result
+            except Exception as exc:
+                warning = f"Cloudinary error: {exc} — saved locally (ephemeral)"
+        else:
+            warning = ("CLOUDINARY_CLOUD_NAME is not set — "
+                       "image saved to local disk (lost on restart). "
+                       "Add this secret in Replit to enable persistent storage.")
 
-    elif file_type == "video" and _firebase_configured():
-        try:
-            result = upload_to_firebase(file_bytes, filename)
-            result["file_type"] = "video"
-            result["error"] = None
-            return result
-        except Exception as exc:
-            error = f"Firebase error: {exc}"
+    elif file_type == "video":
+        if _firebase_configured():
+            try:
+                result = upload_to_firebase(file_bytes, filename)
+                result["file_type"] = "video"
+                result["warning"] = None
+                result["error"] = None
+                return result
+            except Exception as exc:
+                warning = f"Firebase error: {exc} — saved locally (ephemeral)"
+        else:
+            warning = ("FIREBASE_STORAGE_BUCKET / FIREBASE_SERVICE_ACCOUNT_JSON not set — "
+                       "video saved to local disk (lost on restart).")
 
     local = upload_local(file_bytes, filename, file_type)
     local["file_type"] = file_type
-    local["error"] = error
+    local["warning"] = warning
+    local["error"] = warning  # keep backward-compat key
     return local
 
 

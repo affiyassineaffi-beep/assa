@@ -13,7 +13,7 @@ from oauthlib.oauth2 import WebApplicationClient
 from sqlalchemy import or_, and_, text
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from models import db, Student, Grade, Message, Track, Group, GroupMember, Resource, UserFile, SystemSetting
+from models import db, Student, Grade, Message, Track, Group, GroupMember, Resource, UserFile, SystemSetting, ChatMessage, UserLog
 import storage_manager as sm
 from datetime import timedelta
 from werkzeug.utils import secure_filename
@@ -36,9 +36,25 @@ from email.utils import formataddr
 # ─── App setup ────────────────────────────────────────────────────────────────
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key-change-me")
-_DB_PATH = Path(__file__).parent / "data" / "academic_platform.db"
-_DB_PATH.parent.mkdir(exist_ok=True)
-app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{_DB_PATH}"
+
+# ─── Database — SQLite (default) or Supabase/Postgres (if SUPABASE_DB_URL set) ─
+_SUPABASE_DB_URL = os.environ.get("SUPABASE_DB_URL", "").strip()
+if _SUPABASE_DB_URL:
+    # Normalize: SQLAlchemy 2.x wants postgresql:// (not postgres://)
+    if _SUPABASE_DB_URL.startswith("postgres://"):
+        _SUPABASE_DB_URL = "postgresql://" + _SUPABASE_DB_URL[len("postgres://"):]
+    app.config["SQLALCHEMY_DATABASE_URI"] = _SUPABASE_DB_URL
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_pre_ping": True,
+        "pool_recycle": 280,
+        "pool_size": 5,
+        "max_overflow": 10,
+    }
+else:
+    # Fall back to local SQLite
+    _DB_PATH = Path(__file__).parent / "data" / "academic_platform.db"
+    _DB_PATH.parent.mkdir(exist_ok=True)
+    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{_DB_PATH}"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # 25 MB upload cap
 # Persistent session ("Remember me") — 90-day cookie when session.permanent = True
@@ -48,6 +64,18 @@ app.config["SESSION_COOKIE_SECURE"] = bool(os.environ.get("REPLIT_DOMAINS"))
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 db.init_app(app)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+
+# ─── supabase-py client (Auth / Storage / Realtime — optional helpers) ────────
+supabase_client = None
+try:
+    from supabase import create_client as _sb_create_client
+    _SB_URL = os.environ.get("SUPABASE_URL", "").strip()
+    _SB_KEY = (os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+               or os.environ.get("SUPABASE_ANON_KEY", "").strip())
+    if _SB_URL and _SB_KEY:
+        supabase_client = _sb_create_client(_SB_URL, _SB_KEY)
+except Exception as _e:
+    supabase_client = None
 
 GOOGLE_DISCOVERY_URL = "https://accounts.google.com/.well-known/openid-configuration"
 SCHOOLS_DATA_PATH = Path("data/schools.csv")
@@ -176,15 +204,19 @@ ALL_REGIONS = sorted(set(ALL_DELEGATIONS) | {r["location"] for r in SCHOOL_ROWS}
 
 
 def schools_for_region_level(region: str, level: str = "") -> list[str]:
-    """Look up schools for a delegation+level.
-    Primary source: LYCEES_BY_DELEGATION (geodata).
-    Fallback: legacy CSV rows.
+    """Look up institutions for a delegation+level.
+
+    Primary source : `data.tunisia_geodata.schools_for_delegation()` which now
+    dispatches on level: Primary, Preparatory, Secondary, University.
+    Fallback       : legacy CSV rows (only useful for level=Secondary).
     """
-    from_geo  = schools_for_delegation(region, level) if level else sorted(
-        LYCEES_BY_DELEGATION.get(region, []))
-    from_csv  = sorted({r["name"] for r in SCHOOL_ROWS
-                        if r["location"] == region
-                        and (not level or r.get("level") == level)})
+    # Always go through the level-aware dispatcher (defaults to Secondary).
+    from_geo = schools_for_delegation(region, level)
+    from_csv: list[str] = []
+    if not level or level == "Secondary":
+        from_csv = sorted({r["name"] for r in SCHOOL_ROWS
+                           if r["location"] == region
+                           and (not level or r.get("level") == level)})
     combined = sorted(set(from_geo) | set(from_csv))
     return combined if combined else sorted(LYCEES_BY_DELEGATION.get(region, []))
 
@@ -220,7 +252,7 @@ def detect_browser_lang() -> str:
                 return base
     except Exception:
         pass
-    return "fr"
+    return "ar"   # Arabic default for Tunisian users
 
 
 def get_lang() -> str:
@@ -262,17 +294,65 @@ def level_display(level: str, lang: str | None = None) -> str:
 
 # ─── Auth helpers ─────────────────────────────────────────────────────────────
 def current_student() -> Student | None:
+    """Resolve the logged-in user, enforcing live session validity:
+    - student must still exist
+    - must NOT be banned and must be active
+    - the session_version stamped at login must equal the DB's current version
+      (admin ban / delete / password-reset bumps the version → all live cookies
+      become invalid instantly without restart)."""
     sid = session.get("student_id")
     if not sid:
         return None
-    return db.session.get(Student, sid)
+    student = db.session.get(Student, sid)
+    if student is None:
+        session.clear()
+        return None
+    if int(student.is_banned or 0) == 1 or int(student.is_active or 0) == 0:
+        session.clear()
+        return None
+    cookie_ver = int(session.get("session_version", 0) or 0)
+    if cookie_ver and cookie_ver != int(student.session_version or 1):
+        session.clear()
+        return None
+    return student
 
 
 def save_session(student: Student, remember: bool = True) -> None:
     session["student_id"] = student.id
     session["username"] = student.username
+    session["session_version"] = int(student.session_version or 1)
     # Default = remember: 90-day persistent cookie. If remember=False, cookie expires on browser close.
     session.permanent = bool(remember)
+
+
+def _client_ip() -> str:
+    """Best-effort client IP (honours X-Forwarded-For when behind a proxy)."""
+    xff = (request.headers.get("X-Forwarded-For", "") or "").split(",")[0].strip()
+    return xff or (request.remote_addr or "")
+
+
+def record_login(student: Student, method: str = "password",
+                 note: str | None = None) -> None:
+    """Persist a login event in the `user_logs` table and update the student's
+    last_login_* columns. Failures are swallowed so a logging hiccup never
+    blocks a successful sign-in."""
+    try:
+        ip = _client_ip()
+        ua = (request.headers.get("User-Agent", "") or "")[:400]
+        db.session.add(UserLog(student_id=student.id, event="login",
+                               method=method, ip_address=ip,
+                               user_agent=ua, note=note))
+        student.last_login_at = datetime.utcnow()
+        student.last_login_ip = ip
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
+def revoke_all_sessions(student: Student) -> None:
+    """Bump session_version → every live cookie becomes invalid on next request."""
+    student.session_version = int(student.session_version or 1) + 1
+    db.session.commit()
 
 
 def _smtp_configured() -> bool:
@@ -523,24 +603,51 @@ def global_context():
 
 
 # ─── DB init ──────────────────────────────────────────────────────────────────
+def _pg_table_columns(table_name: str) -> set[str]:
+    """Return the set of column names for a Postgres table (current schema)."""
+    rows = db.session.execute(text(
+        "SELECT column_name FROM information_schema.columns "
+        "WHERE table_schema = current_schema() AND table_name = :t"
+    ), {"t": table_name})
+    return {r[0] for r in rows}
+
+
 def _ensure_schema():
-    """Lightweight migration: create tables and add missing columns on SQLite."""
+    """Postgres schema bootstrap: create all tables, then add any columns
+    introduced after initial deployment. Idempotent — safe to call repeatedly.
+
+    Also detects schema drift from pre-existing Supabase template tables
+    (e.g. a `messages` table with `sender_id uuid` instead of our `integer`)
+    and drops them so `db.create_all()` can rebuild them from our models."""
+    # ── Drift detection: if a key table has a fundamentally wrong shape,
+    # drop it BEFORE create_all so the model definition wins.
+    try:
+        bad = db.session.execute(text(
+            "SELECT data_type FROM information_schema.columns "
+            "WHERE table_schema=current_schema() AND table_name='messages' "
+            "  AND column_name='sender_id'"
+        )).scalar()
+        if bad and bad.lower() != "integer":
+            print(f"  ⚠️  Dropping legacy `messages` table (sender_id={bad}, "
+                  f"expected integer)", flush=True)
+            db.session.execute(text("DROP TABLE IF EXISTS public.messages CASCADE"))
+            db.session.commit()
+    except Exception:
+        db.session.rollback()
+
     db.create_all()
     try:
         # messages.seen_at + messages.group_id
-        cols = {row[1] for row in db.session.execute(text("PRAGMA table_info(messages)"))}
+        cols = _pg_table_columns("messages")
         if "seen_at" not in cols:
-            db.session.execute(text("ALTER TABLE messages ADD COLUMN seen_at DATETIME"))
+            db.session.execute(text("ALTER TABLE messages ADD COLUMN seen_at TIMESTAMP"))
         if "group_id" not in cols:
             db.session.execute(text("ALTER TABLE messages ADD COLUMN group_id INTEGER"))
-        # students.theme + students.language
-        scols = {row[1] for row in db.session.execute(text("PRAGMA table_info(students)"))}
-        if "theme" not in scols:
-            db.session.execute(text("ALTER TABLE students ADD COLUMN theme VARCHAR(16) DEFAULT 'dark'"))
-        if "language" not in scols:
-            db.session.execute(text("ALTER TABLE students ADD COLUMN language VARCHAR(8) DEFAULT 'fr'"))
-        # Gamification + avatar columns
+        # Students column upgrades
+        scols = _pg_table_columns("students")
         for col, ddl in [
+            ("theme",       "ALTER TABLE students ADD COLUMN theme VARCHAR(16) DEFAULT 'dark'"),
+            ("language",    "ALTER TABLE students ADD COLUMN language VARCHAR(8) DEFAULT 'fr'"),
             ("points",      "ALTER TABLE students ADD COLUMN points INTEGER DEFAULT 0"),
             ("level",       "ALTER TABLE students ADD COLUMN level INTEGER DEFAULT 1"),
             ("experience",  "ALTER TABLE students ADD COLUMN experience INTEGER DEFAULT 0"),
@@ -552,14 +659,18 @@ def _ensure_schema():
             ("email_verify_token", "ALTER TABLE students ADD COLUMN email_verify_token VARCHAR(80)"),
             ("phone_verified",     "ALTER TABLE students ADD COLUMN phone_verified INTEGER DEFAULT 0"),
             ("phone_otp",          "ALTER TABLE students ADD COLUMN phone_otp VARCHAR(8)"),
-            ("phone_otp_expires",  "ALTER TABLE students ADD COLUMN phone_otp_expires DATETIME"),
+            ("phone_otp_expires",  "ALTER TABLE students ADD COLUMN phone_otp_expires TIMESTAMP"),
             ("gender",             "ALTER TABLE students ADD COLUMN gender VARCHAR(16)"),
             ("custom_theme",       "ALTER TABLE students ADD COLUMN custom_theme TEXT"),
             ("password_reset_token",   "ALTER TABLE students ADD COLUMN password_reset_token VARCHAR(80)"),
-            ("password_reset_expires", "ALTER TABLE students ADD COLUMN password_reset_expires DATETIME"),
+            ("password_reset_expires", "ALTER TABLE students ADD COLUMN password_reset_expires TIMESTAMP"),
             ("is_admin",               "ALTER TABLE students ADD COLUMN is_admin INTEGER DEFAULT 0"),
             ("delegation",             "ALTER TABLE students ADD COLUMN delegation VARCHAR(120)"),
             ("governorate",            "ALTER TABLE students ADD COLUMN governorate VARCHAR(120)"),
+            ("is_banned",              "ALTER TABLE students ADD COLUMN is_banned INTEGER DEFAULT 0"),
+            ("session_version",        "ALTER TABLE students ADD COLUMN session_version INTEGER DEFAULT 1"),
+            ("last_login_at",          "ALTER TABLE students ADD COLUMN last_login_at TIMESTAMP"),
+            ("last_login_ip",          "ALTER TABLE students ADD COLUMN last_login_ip VARCHAR(64)"),
         ]:
             if col not in scols:
                 db.session.execute(text(ddl))
@@ -653,8 +764,8 @@ def register():
             return render_template("register.html", **ctx)
 
         gender = (request.form.get("gender") or "").strip().lower()
-        if gender not in {"female", "male", "other"}:
-            gender = "other"
+        if gender not in {"female", "male"}:
+            gender = "female"
 
         # AI-generated personal theme:
         #   1) If a photo was uploaded, analyze it directly.
@@ -722,7 +833,11 @@ def login():
             if not student.email_verified:
                 flash("Ton email n'est pas encore vérifié. Vérifie ta boîte mail.", "error")
                 return redirect(url_for("verify_pending", email=student.email or ""))
+            if int(student.is_banned or 0) == 1:
+                flash("Ce compte a été suspendu par un administrateur.", "error")
+                return redirect(url_for("login"))
             save_session(student, remember=remember)
+            record_login(student, method="password")
             flash(t("success_welcome"), "success")
             return redirect(url_for("dashboard"))
         flash(t("err_login_failed"), "error")
@@ -747,6 +862,7 @@ def verify_email(token: str):
     student.email_verify_token = None
     db.session.commit()
     save_session(student)
+    record_login(student, method="email_verify")
     flash("Email vérifié ! Bienvenue 🎉", "success")
     return redirect(url_for("dashboard"))
 
@@ -910,29 +1026,83 @@ def google_login():
     return redirect(uri)
 
 
+@app.route("/auth/info")
+def google_auth_info():
+    """Show the exact redirect URI + JS origin to whitelist in Google Console.
+    Useful when debugging OAuth 403/redirect_uri_mismatch errors."""
+    redirect_uri = get_google_redirect_url()
+    origin = redirect_uri.replace("/auth/callback", "")
+    return jsonify({
+        "service": "ssas",
+        "google_oauth_configured": google_is_configured(),
+        "live_redirect_uri": redirect_uri,
+        "live_javascript_origin": origin,
+        "instructions": [
+            "1. Open Google Cloud Console → APIs & Services → Credentials.",
+            "2. Edit your OAuth 2.0 Client ID (Web application).",
+            "3. Add the URL above under 'Authorized redirect URIs'.",
+            "4. Add the origin (no path) under 'Authorized JavaScript origins'.",
+            "5. Save. If the consent screen is in 'Testing' mode, also add your email as a Test user.",
+            "6. Wait ~30 seconds for Google to propagate, then retry.",
+        ],
+    })
+
+
 @app.route("/auth/callback")
 @app.route("/google_login/callback")  # legacy alias
 def google_callback():
     if not google_is_configured():
         flash(t("google_needs_config"), "error")
         return redirect(url_for("login"))
+
+    # Google returns ?error=access_denied / redirect_uri_mismatch / etc when
+    # the OAuth client is misconfigured or the user is not whitelisted.
+    err = request.args.get("error")
+    if err:
+        err_desc = request.args.get("error_description", "")
+        live = get_google_redirect_url()
+        msg = (f"Google OAuth: {err}. "
+               f"{err_desc} "
+               f"→ Whitelist {live} dans Google Cloud Console "
+               f"(APIs & Services → Credentials → ton OAuth Client → "
+               f"'Authorized redirect URIs'). "
+               f"Voir aussi /auth/info.")
+        app.logger.warning("Google OAuth error from callback: %s — %s", err, err_desc)
+        flash(msg, "error")
+        return redirect(url_for("login"))
+
     code = request.args.get("code")
     if not code:
-        flash("Google did not return a code.", "error")
+        flash(f"Google n'a pas renvoyé de code. URI configurée : {get_google_redirect_url()}. "
+              f"Voir /auth/info pour les étapes.", "error")
         return redirect(url_for("login"))
+
     client = WebApplicationClient(os.environ["GOOGLE_OAUTH_CLIENT_ID"])
-    cfg = requests.get(GOOGLE_DISCOVERY_URL, timeout=10).json()
-    token_url, headers, body = client.prepare_token_request(
-        cfg["token_endpoint"],
-        authorization_response=request.url.replace("http://", "https://"),
-        redirect_url=get_google_redirect_url(), code=code,
-    )
-    token_resp = requests.post(token_url, headers=headers, data=body,
-                               auth=(os.environ["GOOGLE_OAUTH_CLIENT_ID"],
-                                     os.environ["GOOGLE_OAUTH_CLIENT_SECRET"]), timeout=10)
-    client.parse_request_body_response(json.dumps(token_resp.json()))
-    uri, headers, body = client.add_token(cfg["userinfo_endpoint"])
-    info = requests.get(uri, headers=headers, data=body, timeout=10).json()
+    try:
+        cfg = requests.get(GOOGLE_DISCOVERY_URL, timeout=10).json()
+        token_url, headers, body = client.prepare_token_request(
+            cfg["token_endpoint"],
+            authorization_response=request.url.replace("http://", "https://"),
+            redirect_url=get_google_redirect_url(), code=code,
+        )
+        token_resp = requests.post(token_url, headers=headers, data=body,
+                                   auth=(os.environ["GOOGLE_OAUTH_CLIENT_ID"],
+                                         os.environ["GOOGLE_OAUTH_CLIENT_SECRET"]),
+                                   timeout=10)
+        token_data = token_resp.json()
+        if not token_resp.ok or "error" in token_data:
+            app.logger.warning("Google token exchange failed: %s", token_data)
+            flash(f"Échange de token Google échoué : {token_data.get('error_description') or token_data.get('error') or token_resp.status_code}. "
+                  f"Vérifie que {get_google_redirect_url()} est dans 'Authorized redirect URIs'.",
+                  "error")
+            return redirect(url_for("login"))
+        client.parse_request_body_response(json.dumps(token_data))
+        uri, headers, body = client.add_token(cfg["userinfo_endpoint"])
+        info = requests.get(uri, headers=headers, data=body, timeout=10).json()
+    except requests.RequestException as e:
+        app.logger.exception("Google OAuth network failure")
+        flash(f"Erreur réseau Google OAuth : {e}.", "error")
+        return redirect(url_for("login"))
     if not info.get("email_verified"):
         flash(t("err_google_no_email"), "error")
         return redirect(url_for("login"))
@@ -957,7 +1127,11 @@ def google_callback():
     student.email_verified = 1
     student.is_active = 1
     db.session.commit()
+    if int(student.is_banned or 0) == 1:
+        flash("Ce compte a été suspendu par un administrateur.", "error")
+        return redirect(url_for("login"))
     save_session(student)
+    record_login(student, method="google")
     if not profile_is_complete(student):
         flash(t("complete_profile_prompt"), "success")
         return redirect(url_for("complete_profile"))
@@ -1827,12 +2001,58 @@ def _ai_system_prompt(student: Student | None) -> str:
     )
 
 
+def _ai_history_load(student) -> list[dict]:
+    """Load Sami chat history from Supabase Postgres (last AI_MAX_TURNS*2 messages).
+    Returns [{'role': 'user'|'model', 'text': ...}, ...] in chronological order.
+    Falls back to (and refreshes) the session cache for fast page reloads."""
+    cached = session.get(AI_HISTORY_KEY)
+    if cached:
+        return cached
+    rows = (ChatMessage.query
+            .filter_by(student_id=student.id)
+            .order_by(ChatMessage.created_at.desc())
+            .limit(AI_MAX_TURNS * 2).all())
+    rows.reverse()
+    history = [{"role": ("user" if r.role == "user" else "model"),
+                "text": r.content} for r in rows]
+    session[AI_HISTORY_KEY] = history
+    return history
+
+
+def _ai_history_append(student, user_text: str, assistant_text: str,
+                       model_name: str = "") -> None:
+    """Persist a (user, assistant) turn to Supabase Postgres + refresh the
+    session cache. Capped at AI_MAX_TURNS*2 entries in the cache."""
+    try:
+        db.session.add(ChatMessage(student_id=student.id, role="user",
+                                   content=user_text, model=model_name or None))
+        db.session.add(ChatMessage(student_id=student.id, role="assistant",
+                                   content=assistant_text, model=model_name or None))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+    history = session.get(AI_HISTORY_KEY, [])
+    history = history + [{"role": "user", "text": user_text},
+                         {"role": "model", "text": assistant_text}]
+    session[AI_HISTORY_KEY] = history[-(AI_MAX_TURNS * 2):]
+
+
+def _ai_history_clear(student) -> None:
+    """Wipe Sami history both from session cache and Supabase Postgres."""
+    session.pop(AI_HISTORY_KEY, None)
+    try:
+        ChatMessage.query.filter_by(student_id=student.id).delete()
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
 @app.route("/ai")
 def ai_chat():
     student = current_student()
     if not student:
         return redirect(url_for("login"))
-    history = session.get(AI_HISTORY_KEY, [])
+    history = _ai_history_load(student)
     return render_template("ai_chat.html", student=student, history=history,
                            ai_configured=_gemini_ready(),
                            hf_configured=_hf_ready())
@@ -1840,7 +2060,11 @@ def ai_chat():
 
 @app.route("/ai/reset", methods=["POST"])
 def ai_reset():
-    session.pop(AI_HISTORY_KEY, None)
+    student = current_student()
+    if student:
+        _ai_history_clear(student)
+    else:
+        session.pop(AI_HISTORY_KEY, None)
     return redirect(url_for("ai_chat"))
 
 
@@ -1889,7 +2113,7 @@ def ai_stream():
     if len(user_msg) > AI_MAX_CHARS_PER_MSG:
         user_msg = user_msg[:AI_MAX_CHARS_PER_MSG] + " […]"
 
-    history = session.get(AI_HISTORY_KEY, [])
+    history = _ai_history_load(student)
     gem_history = _trim_history_for_api(history)
     system_prompt = _ai_system_prompt(student)
 
@@ -1922,11 +2146,8 @@ def ai_stream():
                         yield "data: \\n\n\n"
                     # Success → persist + done
                     reply = "".join(full).strip()
-                    new_hist = history + [
-                        {"role": "user", "text": user_msg},
-                        {"role": "model", "text": reply},
-                    ]
-                    session[AI_HISTORY_KEY] = new_hist[-(AI_MAX_TURNS * 2):]
+                    _ai_history_append(student, user_msg, reply,
+                                       model_name=GEMINI_MODEL)
                     yield "event: done\ndata: ok\n\n"
                     return
 
@@ -2039,9 +2260,9 @@ def settings_page():
         elif action == "regen_theme":
             # Regenerate the AI personal theme from a fresh photo OR from an
             # interest keyword (which triggers a web image search + analysis)
-            new_gender = (request.form.get("gender") or student.gender or "other").lower()
-            if new_gender not in {"female", "male", "other"}:
-                new_gender = "other"
+            new_gender = (request.form.get("gender") or student.gender or "female").lower()
+            if new_gender not in {"female", "male"}:
+                new_gender = "female"
             student.gender = new_gender
             new_delegation = (request.form.get("delegation") or "").strip()
             if new_delegation:
@@ -2614,12 +2835,17 @@ def api_avatar_upload():
     ext = f.filename.rsplit(".", 1)[-1].lower()
     if ext not in AVATAR_ALLOWED:
         return jsonify({"error": "bad_type"}), 400
-    safe_name = f"{student.id}_{uuid.uuid4().hex[:8]}.{ext}"
-    dest = AVATAR_UPLOAD_DIR / safe_name
-    f.save(dest)
-    student.avatar_url = f"/static/uploads/avatars/{safe_name}"
+    file_bytes = f.read()
+    mime = f.mimetype or f"image/{ext}"
+    result = sm.route_upload(file_bytes, f.filename, mime)
+    avatar_url = result["url"]
+    student.avatar_url = avatar_url
     db.session.commit()
-    return jsonify({"avatar_url": student.avatar_url})
+    return jsonify({
+        "avatar_url": avatar_url,
+        "provider": result.get("provider", "local"),
+        "warning": result.get("warning"),
+    })
 
 
 # ─── Focus Mode (Pomodoro) ───────────────────────────────────────────────────
@@ -2649,11 +2875,17 @@ def api_focus_complete():
 # Uses the modern Router endpoint (OpenAI-compatible chat completions).
 # https://huggingface.co/docs/inference-providers
 HF_API_TOKEN = os.environ.get("HUGGINGFACE_API_TOKEN", "").strip()
-HF_MODEL = os.environ.get(
-    "HF_MODEL",
-    # Strong open chat model with good multilingual + Arabic understanding
-    "meta-llama/Llama-3.1-8B-Instruct:novita",
-)
+# Comma-separated model fallback chain. Stronger multilingual models go first;
+# we fall back gracefully if one provider is offline / model is unavailable.
+HF_MODEL_CHAIN = [
+    m.strip() for m in os.environ.get(
+        "HF_MODEL",
+        "meta-llama/Llama-3.3-70B-Instruct:novita,"
+        "Qwen/Qwen2.5-72B-Instruct:nebius,"
+        "meta-llama/Llama-3.1-70B-Instruct:novita,"
+        "meta-llama/Llama-3.1-8B-Instruct:novita"
+    ).split(",") if m.strip()
+]
 HF_ROUTER_URL = "https://router.huggingface.co/v1/chat/completions"
 
 
@@ -2672,16 +2904,27 @@ def _hf_system_prompt(student: Student | None) -> str:
         if student.governorate:        bits.append(f"gouvernorat: {student.governorate}")
     profile = " · ".join(bits) if bits else "profil inconnu"
     return (
-        "إنتي Sami، الكوتش الذكي متاع SSAS — منصة تونسية للطلبة. "
-        "إختصاصك: نصايح pro في الـIT (programmation, web, mobile, IA, cybersécurité, hardware, networking) "
-        "والـSport (musculation, football, fitness, cardio, تغذية، récupération). "
-        "تكلم دايماً بالدارجة التونسية (مع كلمات فرنسية و عربية فصحى كي يلزم، كيما الطلبة التوانسة في الواقع). "
-        "إذا الطالب كتبلك بالفرنسية ولا الإنڨليزية، جاوب بنفس اللغة لكن إبقى warm و proche. "
-        f"بروفيل الطالب: {profile}. "
-        "كن مختصر (2-5 جمل بحال default) إلا كي يطلب شرح طويل. "
-        "عطي réponses concrètes، أمثلة ملموسة، code snippets كي تحتاج، programmes d'entraînement كي يلزم. "
-        "ماتعطيش نصايح générique مكررة (style « entraine-toi régulièrement », « mange équilibré »…). "
-        "كن صديق pro، مش كتاب مدرسي."
+        "You are Sami, a Tunisian student coach inside SSAS. You ALWAYS reply in "
+        "Tunisian Darija written in LATIN script (Arabizi: 3, 7, 9 for ع ح ق, "
+        "with French loanwords mixed in naturally — exactly how Tunisian students "
+        "chat on WhatsApp). Example tone: « 3aslema! Hak chnowa lazmek ta3mel: "
+        "1) ... 2) ... 3) ... Kifech 7abbeb t3awed t9rralek had el partie? »\n\n"
+        "Specialties: IT (programmation, web, mobile, IA, cybersécurité, hardware, "
+        "networking, devops) and Sport (musculation, football, fitness, cardio, "
+        "nutrition, récupération). Outside these two domains, answer briefly then "
+        "redirect to IT or Sport.\n\n"
+        f"Student profile: {profile}.\n\n"
+        "Rules:\n"
+        "• If the user writes in French, English or Arabic, mirror their language "
+        "  (still warm and direct, no robotic tone).\n"
+        "• Be concrete and concise (3 to 6 short sentences by default). Use bullet "
+        "  lists or numbered steps when it helps.\n"
+        "• Give real examples: code snippets in markdown ``` blocks for IT, sets x reps "
+        "  schemas for sport (ex. « 4x8 squat @ 70% RM »).\n"
+        "• NEVER repeat the same phrase twice. NEVER produce filler like « Python "
+        "  est un langage… Python est un langage… ». If you don't know, say so honestly.\n"
+        "• Don't act like a textbook — talk like a pro friend who already knows the "
+        "  Tunisian school system (bac, devoirs, sections, lycées)."
     )
 
 
@@ -2697,28 +2940,28 @@ def _build_messages(system: str, history: list[dict], user_msg: str) -> list[dic
     return msgs
 
 
-def _hf_generate(system: str, history: list[dict], user_msg: str,
-                 max_new_tokens: int = 500) -> tuple[str | None, str | None]:
-    """Call HF Router (OpenAI-compatible). Returns (text, error)."""
-    if not _hf_ready():
-        return None, "huggingface_token_missing"
+def _hf_call_one(model: str, messages: list[dict],
+                 max_new_tokens: int) -> tuple[str | None, str | None]:
+    """Call one HF Router model. Returns (text, error)."""
     headers = {"Authorization": f"Bearer {HF_API_TOKEN}",
                "Content-Type": "application/json"}
     payload = {
-        "model": HF_MODEL,
-        "messages": _build_messages(system, history, user_msg),
+        "model": model,
+        "messages": messages,
         "max_tokens": max_new_tokens,
-        "temperature": 0.75,
+        "temperature": 0.65,
         "top_p": 0.9,
+        "frequency_penalty": 0.6,
+        "presence_penalty": 0.3,
         "stream": False,
     }
-    for attempt in range(3):
+    for attempt in range(2):
         try:
             r = requests.post(HF_ROUTER_URL, headers=headers, json=payload, timeout=60)
         except requests.RequestException as e:
             return None, f"network: {e}"
         if r.status_code == 503:
-            time.sleep(min(4 + attempt * 4, 15))
+            time.sleep(3 + attempt * 3)
             continue
         if r.status_code in (401, 403):
             return None, "huggingface_unauthorized"
@@ -2726,14 +2969,13 @@ def _hf_generate(system: str, history: list[dict], user_msg: str,
             time.sleep(2 + attempt * 2)
             continue
         if r.status_code == 404:
-            return None, f"hf_model_not_found: {HF_MODEL}"
+            return None, f"hf_model_not_found: {model}"
         if not r.ok:
             return None, f"hf_http_{r.status_code}: {r.text[:200]}"
         try:
             data = r.json()
         except Exception:
             return None, "hf_bad_json"
-        # OpenAI-style response
         try:
             choice = data["choices"][0]
             msg = choice.get("message") or {}
@@ -2750,6 +2992,25 @@ def _hf_generate(system: str, history: list[dict], user_msg: str,
     return None, "hf_loading_timeout"
 
 
+def _hf_generate(system: str, history: list[dict], user_msg: str,
+                 max_new_tokens: int = 500) -> tuple[str | None, str | None]:
+    """Walk the HF model fallback chain. Returns (text, error)."""
+    if not _hf_ready():
+        return None, "huggingface_token_missing"
+    messages = _build_messages(system, history, user_msg)
+    last_err: str | None = None
+    fatal = {"huggingface_unauthorized", "huggingface_token_missing"}
+    for model in HF_MODEL_CHAIN:
+        text, err = _hf_call_one(model, messages, max_new_tokens)
+        if text:
+            return text, None
+        last_err = err
+        # Don't keep trying if the token itself is the problem.
+        if err in fatal:
+            return None, err
+    return None, last_err or "hf_unexpected"
+
+
 @app.route("/ai/hf", methods=["POST"])
 def ai_hf():
     """Non-streaming Hugging Face endpoint (used as primary if token is set)."""
@@ -2762,7 +3023,7 @@ def ai_hf():
     user_msg = (payload.get("message") or "").strip()
     if not user_msg:
         return jsonify({"error": "empty"}), 400
-    history = session.get(AI_HISTORY_KEY, [])
+    history = _ai_history_load(student)
     text_out, err = _hf_generate(_hf_system_prompt(student), history, user_msg)
     if err:
         friendly = {
@@ -2771,11 +3032,7 @@ def ai_hf():
             "hf_loading_timeout":         "Le modèle se réveille, réessaie dans quelques secondes ⏳",
         }.get(err, f"Erreur Sami : {err}")
         return jsonify({"error": friendly}), 503
-    new_hist = history + [
-        {"role": "user", "text": user_msg},
-        {"role": "model", "text": text_out},
-    ]
-    session[AI_HISTORY_KEY] = new_hist[-(AI_MAX_TURNS * 2):]
+    _ai_history_append(student, user_msg, text_out, model_name="hf-router")
     return jsonify({"reply": text_out})
 
 
@@ -2943,6 +3200,121 @@ def admin_grant():
     return jsonify({"ok": True, "is_admin": bool(target.is_admin), "username": target.username})
 
 
+# ─── Admin: ban / unban / delete (with instant session revocation) ───────────
+@app.route("/admin-master/ban", methods=["POST"])
+def admin_ban():
+    student = current_student()
+    if not _is_admin(student):
+        abort(404)
+    payload = request.get_json(silent=True) or {}
+    uid = payload.get("user_id")
+    target = db.session.get(Student, uid) if uid else None
+    if not target:
+        return jsonify({"error": "user not found"}), 404
+    if target.id == student.id:
+        return jsonify({"error": "cannot ban yourself"}), 400
+    target.is_banned = 0 if int(target.is_banned or 0) == 1 else 1
+    revoke_all_sessions(target)  # bumps session_version → kicks live cookies
+    try:
+        db.session.add(UserLog(student_id=target.id,
+                               event=("unbanned" if target.is_banned == 0 else "banned"),
+                               method="admin", ip_address=_client_ip(),
+                               user_agent=(request.headers.get("User-Agent","") or "")[:400],
+                               note=f"by admin {student.username}"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+    return jsonify({"ok": True, "is_banned": bool(target.is_banned),
+                    "username": target.username})
+
+
+@app.route("/admin-master/delete-user", methods=["POST"])
+def admin_delete_user():
+    student = current_student()
+    if not _is_admin(student):
+        abort(404)
+    payload = request.get_json(silent=True) or {}
+    uid = payload.get("user_id")
+    target = db.session.get(Student, uid) if uid else None
+    if not target:
+        return jsonify({"error": "user not found"}), 404
+    if target.id == student.id:
+        return jsonify({"error": "cannot delete yourself"}), 400
+    username = target.username
+    try:
+        # Bump session_version FIRST so any live cookie is invalidated even if
+        # the cascading delete races with an in-flight request.
+        revoke_all_sessions(target)
+        db.session.delete(target)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+    return jsonify({"ok": True, "deleted": username})
+
+
+@app.route("/admin-master/user/<int:uid>/logs")
+def admin_user_logs(uid: int):
+    student = current_student()
+    if not _is_admin(student):
+        abort(404)
+    target = db.session.get(Student, uid)
+    if not target:
+        return jsonify({"error": "user not found"}), 404
+    rows = (UserLog.query.filter_by(student_id=uid)
+            .order_by(UserLog.created_at.desc()).limit(100).all())
+    return jsonify({
+        "user": {"id": target.id, "username": target.username, "email": target.email},
+        "logs": [r.to_dict() for r in rows],
+    })
+
+
+@app.route("/admin-master/db-stats")
+def admin_db_stats():
+    """Live row counts for every public table in Supabase Postgres."""
+    student = current_student()
+    if not _is_admin(student):
+        abort(404)
+    rows = db.session.execute(text(
+        "SELECT table_name FROM information_schema.tables "
+        "WHERE table_schema = current_schema() AND table_type='BASE TABLE' "
+        "ORDER BY table_name"
+    )).fetchall()
+    stats = []
+    for (t_name,) in rows:
+        try:
+            n = db.session.execute(text(f'SELECT count(*) FROM "{t_name}"')).scalar()
+        except Exception:
+            n = None
+        stats.append({"table": t_name, "rows": n})
+    # PostgreSQL version + db size
+    try:
+        ver = db.session.execute(text("SELECT version()")).scalar()
+        size = db.session.execute(text(
+            "SELECT pg_size_pretty(pg_database_size(current_database()))"
+        )).scalar()
+    except Exception:
+        ver, size = None, None
+    return jsonify({"version": ver, "size": size, "tables": stats})
+
+
+@app.route("/admin-master/recent-logins")
+def admin_recent_logins():
+    """Last 50 login events across all users (Connection Logging dashboard)."""
+    student = current_student()
+    if not _is_admin(student):
+        abort(404)
+    rows = (db.session.query(UserLog, Student)
+            .join(Student, Student.id == UserLog.student_id)
+            .order_by(UserLog.created_at.desc()).limit(50).all())
+    return jsonify({"events": [
+        {**log.to_dict(),
+         "username": stu.username,
+         "email": stu.email}
+        for log, stu in rows
+    ]})
+
+
 # ─── Logout ───────────────────────────────────────────────────────────────────
 @app.route("/logout")
 def logout():
@@ -2970,6 +3342,22 @@ def _audit_missing_secrets() -> list[str]:
         "FIREBASE_SERVICE_ACCOUNT_JSON": "Video storage",
     }
     return [k for k in candidates if not os.environ.get(k, "").strip()]
+
+
+@app.errorhandler(413)
+def _err_413(_e):
+    if request.is_json or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({
+            "error": "file_too_large",
+            "message": "File exceeds the 25 MB limit. Please compress or choose a smaller file.",
+        }), 413
+    return render_template(
+        "error.html",
+        badge="413",
+        title="File too large",
+        message="Your file exceeds the 25 MB upload limit. Please compress it or pick a smaller file.",
+        show_retry=True,
+    ), 413
 
 
 @app.errorhandler(404)
@@ -3063,6 +3451,96 @@ def _print_startup_audit() -> None:
         print("═" * 60 + "\n", flush=True)
     else:
         print("\n", flush=True)
+
+
+# ─── Health & Secrets Checklist (public, presence-only — never exposes values) ─
+@app.route("/health")
+def health_check():
+    """Lightweight liveness probe."""
+    return jsonify({"status": "ok", "service": "ssas", "version": "rebuild-apr-2026"})
+
+
+@app.route("/health/secrets")
+def health_secrets():
+    """Public secrets-presence checklist. Reports only whether each key is set,
+    NEVER the actual value. Safe to expose for ops dashboards."""
+    groups: list[dict] = [
+        {"category": "Database — Supabase",
+         "items": [
+             ("SUPABASE_DB_URL",                  "Postgres connection (SQLAlchemy)", True),
+             ("SUPABASE_URL",                     "Supabase REST/Realtime base URL",  False),
+             ("SUPABASE_SERVICE_ROLE_KEY",        "Server-side Supabase admin key",   False),
+             ("SUPABASE_ANON_KEY",                "Client-side Supabase anon key",    False),
+         ]},
+        {"category": "Core",
+         "items": [
+             ("SESSION_SECRET",                   "Flask session encryption", True),
+             ("ADMIN_EMAIL",                      "Admin panel access",       False),
+         ]},
+        {"category": "AI Coach (Sami)",
+         "items": [
+             ("HUGGINGFACE_API_TOKEN",            "Primary AI (Sami v3 — Llama-3 chain)", False),
+             ("GEMINI_API_KEY",                   "Fallback AI (Gemini, key #1)",         False),
+             ("GEMINI_API_KEY_2",                 "Fallback AI (Gemini, key #2)",         False),
+             ("GEMINI_API_KEY_3",                 "Fallback AI (Gemini, key #3)",         False),
+         ]},
+        {"category": "Authentication",
+         "items": [
+             ("GOOGLE_OAUTH_CLIENT_ID",           "Google login (OAuth)",     False),
+             ("GOOGLE_OAUTH_CLIENT_SECRET",       "Google login (OAuth)",     False),
+         ]},
+        {"category": "Email (SMTP)",
+         "items": [
+             ("SMTP_HOST",                        "SMTP server host",         False),
+             ("SMTP_USER",                        "SMTP username",            False),
+             ("SMTP_PASSWORD",                    "SMTP password",            False),
+             ("SMTP_PORT",                        "SMTP port (default 587)",  False),
+             ("SMTP_FROM",                        "From address override",    False),
+         ]},
+        {"category": "Storage — Cloudinary (avatars)",
+         "items": [
+             ("CLOUDINARY_CLOUD_NAME",            "Cloud name",               False),
+             ("CLOUDINARY_API_KEY",               "API key",                  False),
+             ("CLOUDINARY_API_SECRET",            "API secret",               False),
+         ]},
+        {"category": "Storage — Firebase (videos)",
+         "items": [
+             ("FIREBASE_STORAGE_BUCKET",          "Bucket name",              False),
+             ("FIREBASE_SERVICE_ACCOUNT_JSON",    "Service account JSON",     False),
+         ]},
+        {"category": "Optional integrations",
+         "items": [
+             ("YOUTUBE_API_KEY",                  "YouTube search (optional)", False),
+             ("HF_MODEL",                         "Override Sami model chain", False),
+         ]},
+    ]
+    out: list[dict] = []
+    total, set_count, required_missing = 0, 0, 0
+    for g in groups:
+        items = []
+        for key, purpose, required in g["items"]:
+            present = bool(os.environ.get(key, "").strip())
+            total += 1
+            if present:
+                set_count += 1
+            elif required:
+                required_missing += 1
+            items.append({
+                "key": key, "purpose": purpose,
+                "required": required, "set": present,
+                "status": "ok" if present else ("missing" if required else "optional"),
+            })
+        out.append({"category": g["category"], "items": items})
+    return jsonify({
+        "service": "ssas",
+        "summary": {
+            "total": total,
+            "set": set_count,
+            "missing_required": required_missing,
+            "ready": required_missing == 0,
+        },
+        "groups": out,
+    })
 
 
 # ─── Run ──────────────────────────────────────────────────────────────────────
