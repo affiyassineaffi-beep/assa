@@ -2800,12 +2800,17 @@ def api_avatar_upload():
     ext = f.filename.rsplit(".", 1)[-1].lower()
     if ext not in AVATAR_ALLOWED:
         return jsonify({"error": "bad_type"}), 400
-    safe_name = f"{student.id}_{uuid.uuid4().hex[:8]}.{ext}"
-    dest = AVATAR_UPLOAD_DIR / safe_name
-    f.save(dest)
-    student.avatar_url = f"/static/uploads/avatars/{safe_name}"
+    file_bytes = f.read()
+    mime = f.mimetype or f"image/{ext}"
+    result = sm.route_upload(file_bytes, f.filename, mime)
+    avatar_url = result["url"]
+    student.avatar_url = avatar_url
     db.session.commit()
-    return jsonify({"avatar_url": student.avatar_url})
+    return jsonify({
+        "avatar_url": avatar_url,
+        "provider": result.get("provider", "local"),
+        "warning": result.get("warning"),
+    })
 
 
 # ─── Focus Mode (Pomodoro) ───────────────────────────────────────────────────
@@ -3302,6 +3307,22 @@ def _audit_missing_secrets() -> list[str]:
         "FIREBASE_SERVICE_ACCOUNT_JSON": "Video storage",
     }
     return [k for k in candidates if not os.environ.get(k, "").strip()]
+
+
+@app.errorhandler(413)
+def _err_413(_e):
+    if request.is_json or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({
+            "error": "file_too_large",
+            "message": "File exceeds the 25 MB limit. Please compress or choose a smaller file.",
+        }), 413
+    return render_template(
+        "error.html",
+        badge="413",
+        title="File too large",
+        message="Your file exceeds the 25 MB upload limit. Please compress it or pick a smaller file.",
+        show_retry=True,
+    ), 413
 
 
 @app.errorhandler(404)
